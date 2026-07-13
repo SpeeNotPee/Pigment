@@ -1,0 +1,4 @@
+# pigmentlab.net — static site served from the Pigment repo's `site` branch.
+Options -Indexes
+# Deny web access to any git metadata that the deploy leaves behind.
+RedirectMatch 404 /\.git
