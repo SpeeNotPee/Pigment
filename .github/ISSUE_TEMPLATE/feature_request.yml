@@ -1,0 +1,28 @@
+name: Feature Request
+description: Suggest an idea or improvement for Pigment
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion! Note that features Roblox or Sober treat as
+        abusive (e.g. simultaneous multi-instance, anti-cheat bypasses) are out of
+        scope and won't be added.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: What are you trying to do that Pigment doesn't let you do today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

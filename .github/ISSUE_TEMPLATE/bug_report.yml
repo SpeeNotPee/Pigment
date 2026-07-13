@@ -1,0 +1,65 @@
+name: Bug Report
+description: Report a problem with Pigment
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug! Please fill out the details below.
+
+        Pigment drives **Sober** — if Roblox won't launch at all, first confirm
+        that Sober works on its own (`flatpak run org.vinegarhq.Sober`).
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the bug and what you expected to happen instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open Pigment
+        2. Go to '...'
+        3. Click '...'
+        4. See error
+    validations:
+      required: true
+  - type: input
+    id: pigment-version
+    attributes:
+      label: Pigment version
+      description: See Menu ▸ About Pigment.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: sober-version
+    attributes:
+      label: Sober version
+      description: "Output of `flatpak info org.vinegarhq.Sober`."
+      placeholder: "1.7.1"
+  - type: input
+    id: environment
+    attributes:
+      label: Distro & desktop
+      placeholder: "Arch Linux · KDE Plasma (Wayland)"
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs / terminal output
+      description: Output from running `pigment` in a terminal, if any.
+      render: shell
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmations
+      options:
+        - label: I searched existing issues and this is not a duplicate.
+          required: true
+        - label: Roblox launches normally through Sober by itself.

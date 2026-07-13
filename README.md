@@ -65,6 +65,25 @@ makepkg -si
 make uninstall PREFIX=$HOME/.local   # match your install PREFIX
 ```
 
+## Feedback & bug reports
+
+Found a bug or have an idea? Please [open an issue](https://github.com/SpeeNotPee/Pigment/issues/new/choose).
+There are templates for **bug reports** and **feature requests**. From inside the
+app you can also use **Menu ▸ Report a Bug**, or **Menu ▸ About Pigment ▸ Report
+an Issue**.
+
+When reporting a bug, include your Pigment version (Menu ▸ About Pigment), your
+Sober version, and your distro/desktop.
+
+## Legal
+
+- Pigment is **unofficial** and is not affiliated with, endorsed by, or sponsored
+  by Roblox Corporation or VinegarHQ. All trademarks belong to their respective
+  owners.
+- Using unofficial clients is at your own risk; you are responsible for complying
+  with Roblox's Terms of Use.
+- [Terms of Use](TERMS.md) · [Privacy Notice](PRIVACY.md) · [License (MIT)](LICENSE)
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

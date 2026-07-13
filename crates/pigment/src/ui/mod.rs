@@ -1,5 +1,6 @@
 //! Window assembly and shared UI helpers.
 
+mod about;
 mod activity;
 mod fflags;
 mod home;
@@ -46,6 +47,10 @@ pub fn build_window(app: &adw::Application) -> adw::ApplicationWindow {
     let content_header = adw::HeaderBar::new();
     let content_title = adw::WindowTitle::new("Pigment", "");
     content_header.set_title_widget(Some(&content_title));
+    // Primary menu (feedback, docs, about). Wired to actions once the window
+    // exists, below.
+    let menu = about::menu_button();
+    content_header.pack_end(&menu);
 
     let content_view = adw::ToolbarView::new();
     content_view.add_top_bar(&content_header);
@@ -108,13 +113,24 @@ pub fn build_window(app: &adw::Application) -> adw::ApplicationWindow {
         list.select_row(Some(&row));
     }
 
-    adw::ApplicationWindow::builder()
+    let window = adw::ApplicationWindow::builder()
         .application(app)
         .title("Pigment")
         .default_width(940)
         .default_height(660)
         .content(&split)
-        .build()
+        .build();
+    about::install_menu(&window, &menu);
+
+    // Testing hook: open the About window shortly after startup (once the main
+    // window is presented) for screenshots.
+    if std::env::var_os("PIGMENT_SHOW_ABOUT").is_some() {
+        let window = window.clone();
+        glib::timeout_add_local_once(std::time::Duration::from_millis(400), move || {
+            about::show_about(&window);
+        });
+    }
+    window
 }
 
 /// A sidebar row: icon + label.
