@@ -72,6 +72,36 @@ pub fn build() -> gtk::Widget {
         .wrap(true)
         .css_classes(["dim-label"])
         .build();
+    // Clear/reset: wipe all FastFlags back to an empty set.
+    let clear = gtk::Button::builder()
+        .label("Clear All")
+        .tooltip_text("Remove all FastFlags")
+        .css_classes(["destructive-action"])
+        .build();
+    {
+        let buffer = buffer.clone();
+        let status = status.clone();
+        let config_path = config_path.clone();
+        clear.connect_clicked(move |_| {
+            // Reload fresh so non-fflag keys survive, then empty the fflag map.
+            let mut cfg = match Config::load(&config_path) {
+                Ok(c) => c,
+                Err(e) => {
+                    set_error(&status, &format!("Could not read config: {e}"));
+                    return;
+                }
+            };
+            cfg.set_fflags(serde_json::Map::new());
+            match cfg.save(&config_path) {
+                Ok(()) => {
+                    buffer.set_text("{}");
+                    set_ok(&status, "Cleared all FastFlags. Restart Roblox to apply.");
+                }
+                Err(e) => set_error(&status, &format!("Clear failed: {e}")),
+            }
+        });
+    }
+
     let apply = gtk::Button::builder()
         .label("Apply FastFlags")
         .css_classes(["suggested-action"])
@@ -115,6 +145,7 @@ pub fn build() -> gtk::Widget {
         .spacing(12)
         .build();
     bar.append(&status);
+    bar.append(&clear);
     bar.append(&apply);
     root.append(&bar);
 
