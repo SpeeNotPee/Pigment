@@ -1,0 +1,29 @@
+# Maintainer: Pigment contributors
+pkgname=pigment
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Roblox launcher and manager for Linux (drives the Sober runtime)"
+arch=('x86_64' 'aarch64')
+url="https://github.com/miku/pigment"
+license=('MIT')
+depends=('gtk4' 'libadwaita')
+makedepends=('rust' 'cargo')
+optdepends=('flatpak: required to install and run the Sober runtime'
+            'xdg-utils: to set Pigment as the default roblox:// handler'
+            'kdesu: KDE service-cache refresh when changing the handler')
+# Built from a local source tarball produced by `make dist` in the repo root.
+# When published, replace with the release tarball URL and a real checksum.
+source=("$pkgname-$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+  cd "$srcdir/$pkgname-$pkgver"
+  export RUSTUP_TOOLCHAIN=stable
+  cargo build --release --workspace --frozen
+}
+
+package() {
+  cd "$srcdir/$pkgname-$pkgver"
+  make install PREFIX=/usr DESTDIR="$pkgdir"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

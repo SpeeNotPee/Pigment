@@ -1,0 +1,18 @@
+[package]
+name = "pigment"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "pigment"
+path = "src/main.rs"
+
+[dependencies]
+pigment-core = { workspace = true }
+gtk = { package = "gtk4", version = "0.11", features = ["v4_12"] }
+adw = { package = "libadwaita", version = "0.9", features = ["v1_4"] }
+glib = "0.22"
+serde_json = { workspace = true }
+async-channel = "2"

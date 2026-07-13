@@ -1,0 +1,19 @@
+[package]
+name = "pigment-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+jsonc-parser = { workspace = true }
+thiserror = { workspace = true }
+tempfile = { workspace = true }
+zip = { workspace = true }
+time = { workspace = true }
+ureq = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

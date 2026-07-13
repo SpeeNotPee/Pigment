@@ -1,0 +1,13 @@
+[package]
+name = "pigment-launch"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "pigment-launch"
+path = "src/main.rs"
+
+[dependencies]
+pigment-core = { workspace = true }

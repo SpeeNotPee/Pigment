@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Pigment
+GenericName=Roblox Launcher
+Comment=Manage and launch Roblox on Linux via Sober
+Exec=pigment
+Icon=org.pigment.Pigment
+Terminal=false
+Categories=Game;
+Keywords=Roblox;Sober;launcher;FastFlags;mods;
+StartupNotify=true
