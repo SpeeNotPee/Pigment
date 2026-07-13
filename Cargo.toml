@@ -11,7 +11,7 @@ version = "0.1.0"
 edition = "2021"
 rust-version = "1.96"
 license = "MIT"
-repository = "https://github.com/miku/pigment"
+repository = "https://github.com/SpeeNotPee/Pigment"
 
 [workspace.dependencies]
 pigment-core = { path = "crates/pigment-core" }
