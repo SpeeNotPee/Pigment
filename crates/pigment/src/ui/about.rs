@@ -4,12 +4,12 @@
 use adw::prelude::*;
 use gtk::gio;
 
-const SITE: &str = "https://speenotpee.github.io/Pigment/";
+const SITE: &str = "https://pigmentlab.net/";
 const REPO: &str = "https://github.com/SpeeNotPee/Pigment";
 const ISSUES: &str = "https://github.com/SpeeNotPee/Pigment/issues";
 const ISSUES_NEW_BUG: &str =
     "https://github.com/SpeeNotPee/Pigment/issues/new?template=bug_report.yml";
-const DOCS: &str = "https://speenotpee.github.io/Pigment/guide.html";
+const DOCS: &str = "https://pigmentlab.net/guide.html";
 const TERMS: &str = "https://github.com/SpeeNotPee/Pigment/blob/main/TERMS.md";
 const PRIVACY: &str = "https://github.com/SpeeNotPee/Pigment/blob/main/PRIVACY.md";
 

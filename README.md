@@ -1,7 +1,7 @@
 # Pigment
 
-**[Website](https://speenotpee.github.io/Pigment/)** ·
-**[Documentation](https://speenotpee.github.io/Pigment/guide.html)** ·
+**[Website](https://pigmentlab.net/)** ·
+**[Documentation](https://pigmentlab.net/guide.html)** ·
 **[Report a bug](https://github.com/SpeeNotPee/Pigment/issues/new/choose)**
 
 A Roblox launcher and manager for Linux — a Bloxstrap-class front end for
