@@ -1,7 +1,7 @@
 blank_issues_enabled: false
 contact_links:
   - name: Documentation
-    url: https://github.com/SpeeNotPee/Pigment#readme
+    url: https://speenotpee.github.io/Pigment/guide.html
     about: Read the docs — your question may already be answered.
   - name: Sober (the runtime Pigment drives)
     url: https://sober.vinegarhq.org/

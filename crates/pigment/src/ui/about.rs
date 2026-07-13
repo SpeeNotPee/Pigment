@@ -4,11 +4,12 @@
 use adw::prelude::*;
 use gtk::gio;
 
+const SITE: &str = "https://speenotpee.github.io/Pigment/";
 const REPO: &str = "https://github.com/SpeeNotPee/Pigment";
 const ISSUES: &str = "https://github.com/SpeeNotPee/Pigment/issues";
 const ISSUES_NEW_BUG: &str =
     "https://github.com/SpeeNotPee/Pigment/issues/new?template=bug_report.yml";
-const DOCS: &str = "https://github.com/SpeeNotPee/Pigment#readme";
+const DOCS: &str = "https://speenotpee.github.io/Pigment/guide.html";
 const TERMS: &str = "https://github.com/SpeeNotPee/Pigment/blob/main/TERMS.md";
 const PRIVACY: &str = "https://github.com/SpeeNotPee/Pigment/blob/main/PRIVACY.md";
 
@@ -39,6 +40,7 @@ pub(crate) fn install_menu(window: &adw::ApplicationWindow, button: &gtk::MenuBu
     let feedback = gio::Menu::new();
     feedback.append(Some("Report a Bug\u{2026}"), Some("win.report-bug"));
     feedback.append(Some("Documentation"), Some("win.docs"));
+    feedback.append(Some("Website"), Some("win.website"));
     menu.append_section(None, &feedback);
     let about_section = gio::Menu::new();
     about_section.append(Some("About Pigment"), Some("win.about"));
@@ -51,6 +53,9 @@ pub(crate) fn install_menu(window: &adw::ApplicationWindow, button: &gtk::MenuBu
             .build(),
         gio::ActionEntry::builder("docs")
             .activate(|win: &adw::ApplicationWindow, _, _| open_uri(win, DOCS))
+            .build(),
+        gio::ActionEntry::builder("website")
+            .activate(|win: &adw::ApplicationWindow, _, _| open_uri(win, SITE))
             .build(),
         gio::ActionEntry::builder("about")
             .activate(|win: &adw::ApplicationWindow, _, _| show_about(win))
@@ -83,11 +88,12 @@ pub(crate) fn show_about(parent: &adw::ApplicationWindow) {
         .version(env!("CARGO_PKG_VERSION"))
         .developer_name("Pigment contributors")
         .comments("A Roblox launcher and manager for Linux, built on the Sober runtime.")
-        .website(REPO)
+        .website(SITE)
         .issue_url(ISSUES)
         .license_type(gtk::License::MitX11)
         .copyright("\u{00a9} 2026 Pigment contributors")
         .build();
+    about.add_link("Source Code", REPO);
     about.add_link("Terms of Use", TERMS);
     about.add_link("Privacy Policy", PRIVACY);
     about.add_legal_section(
