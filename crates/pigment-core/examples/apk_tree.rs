@@ -1,5 +1,5 @@
-//! Index the real Sober `base.apk` on this machine and print summary stats.
-//! Read-only. Usage: `cargo run -p pigment-core --example apk_tree`
+//! index the real sober `base.apk` on this machine and print summary stats.
+//! read-only. usage: `cargo run -p pigment-core --example apk_tree`
 
 use pigment_core::{ApkAssetTree, SoberPaths};
 
