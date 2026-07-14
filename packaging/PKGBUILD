@@ -19,7 +19,7 @@ sha256sums=('SKIP')
 build() {
   cd "$srcdir/$pkgname-$pkgver"
   export RUSTUP_TOOLCHAIN=stable
-  cargo build --release --workspace --frozen
+  cargo build --release --workspace
 }
 
 package() {
