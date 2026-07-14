@@ -7,6 +7,7 @@ arch=('x86_64' 'aarch64')
 url="https://github.com/SpeeNotPee/Pigment"
 license=('MIT')
 depends=('gtk4' 'libadwaita')
+options=(~lto)
 makedepends=('rust' 'cargo')
 optdepends=('flatpak: required to install and run the Sober runtime'
             'xdg-utils: to set Pigment as the default roblox:// handler'
