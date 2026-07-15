@@ -31,7 +31,11 @@ safely rewriting its config, composing mods into its overlay, launching it, and
 ## Requirements
 
 - The Sober Flatpak: `flatpak install flathub org.vinegarhq.Sober`
-- GTK 4 and libadwaita (runtime); Rust and Cargo (to build)
+- GTK 4 (**≥ 4.12**) and libadwaita (**≥ 1.4**) at runtime; Rust **≥ 1.96** and
+  Cargo to build.
+
+See [COMPATIBILITY.md](COMPATIBILITY.md) for a per-distribution breakdown
+(Arch, CachyOS, EndeavourOS, Manjaro, SteamOS, Ubuntu, Debian, Mint, Pop!_OS).
 
 ## Install
 
@@ -49,7 +53,19 @@ System-wide:
 sudo make install PREFIX=/usr
 ```
 
-### Arch (PKGBUILD)
+### Arch — AUR
+
+Install with your AUR helper:
+
+```sh
+yay -S pigment        # latest release
+yay -S pigment-git    # builds the latest git main
+```
+
+Works on Arch and its derivatives (CachyOS, EndeavourOS, Manjaro). See
+[COMPATIBILITY.md](COMPATIBILITY.md) for per-distro notes.
+
+### Arch — from source (PKGBUILD)
 
 ```sh
 make dist
