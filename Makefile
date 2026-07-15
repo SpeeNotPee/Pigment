@@ -13,7 +13,7 @@ PREFIX  ?= /usr/local
 DESTDIR ?=
 CARGO   ?= cargo
 APPID   := org.pigment.Pigment
-VERSION := 0.1.1
+VERSION := 0.1.2
 
 BINDIR     := $(DESTDIR)$(PREFIX)/bin
 APPDIR     := $(DESTDIR)$(PREFIX)/share/applications

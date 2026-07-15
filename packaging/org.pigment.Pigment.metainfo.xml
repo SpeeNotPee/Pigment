@@ -78,6 +78,11 @@
   </content_rating>
 
   <releases>
+    <release version="0.1.2" date="2026-07-15">
+      <description>
+        <p>Flatpak packaging with AppStream metadata; sandbox-aware Sober integration.</p>
+      </description>
+    </release>
     <release version="0.1.1" date="2026-07-15">
       <description>
         <p>Renames the GUI binary to pigmentlab to avoid a collision, and adds Flatpak packaging.</p>

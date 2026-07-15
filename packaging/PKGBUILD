@@ -1,6 +1,6 @@
 # Maintainer: Pigment contributors
 pkgname=pigment
-pkgver=0.1.1
+pkgver=0.1.2
 pkgrel=1
 pkgdesc="Roblox launcher and manager for Linux (drives the Sober runtime)"
 arch=('x86_64' 'aarch64')
