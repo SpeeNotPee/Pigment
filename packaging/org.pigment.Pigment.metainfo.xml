@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.pigment.Pigment</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+
+  <name>Pigment</name>
+  <summary>Manage and launch Roblox on Linux via Sober</summary>
+
+  <developer id="net.pigmentlab">
+    <name>Pigment contributors</name>
+  </developer>
+
+  <description>
+    <p>
+      Pigment is a launcher and manager for Roblox on Linux — a Bloxstrap-class
+      front end for Sober, the runtime that runs the Android Roblox client (the
+      one path that works under Roblox's anti-cheat). Sober works well but is
+      configured entirely by hand-editing JSON; Pigment gives it a real GUI.
+    </p>
+    <p>What it does:</p>
+    <ul>
+      <li>Settings: a typed interface over every Sober configuration key</li>
+      <li>Profiles: named setups applied one at a time, automatically on launch</li>
+      <li>FastFlags: a validating JSON editor in Bloxstrap's exact format</li>
+      <li>Mods: file overlays via Sober's sanctioned asset overlay, validated against the Roblox asset tree</li>
+      <li>Default launcher: opt-in, reversible takeover of the roblox:// handler</li>
+      <li>Activity history and Discord Rich Presence</li>
+    </ul>
+    <p>
+      Pigment does not reimplement the runtime; it drives Sober as-is. It is
+      unofficial and is not affiliated with, endorsed by, or sponsored by Roblox
+      Corporation or VinegarHQ.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">org.pigment.Pigment.desktop</launchable>
+
+  <categories>
+    <category>Game</category>
+    <category>Utility</category>
+  </categories>
+
+  <keywords>
+    <keyword>Roblox</keyword>
+    <keyword>Sober</keyword>
+    <keyword>launcher</keyword>
+    <keyword>FastFlags</keyword>
+    <keyword>mods</keyword>
+  </keywords>
+
+  <url type="homepage">https://pigmentlab.net/</url>
+  <url type="bugtracker">https://github.com/SpeeNotPee/Pigment/issues</url>
+  <url type="help">https://pigmentlab.net/guide.html</url>
+  <url type="vcs-browser">https://github.com/SpeeNotPee/Pigment</url>
+
+  <screenshots>
+    <screenshot type="default">
+      <caption>The Home page, showing Sober runtime status and launcher controls</caption>
+      <image>https://raw.githubusercontent.com/SpeeNotPee/Pigment/main/packaging/screenshots/home.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>The FastFlags editor, in Bloxstrap's JSON format</caption>
+      <image>https://raw.githubusercontent.com/SpeeNotPee/Pigment/main/packaging/screenshots/fastflags.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Profiles: named, one-at-a-time configuration setups</caption>
+      <image>https://raw.githubusercontent.com/SpeeNotPee/Pigment/main/packaging/screenshots/profiles.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Recent games activity, resolved from Sober's logs</caption>
+      <image>https://raw.githubusercontent.com/SpeeNotPee/Pigment/main/packaging/screenshots/activity.png</image>
+    </screenshot>
+  </screenshots>
+
+  <content_rating type="oars-1.1">
+    <content_attribute id="social-info">mild</content_attribute>
+  </content_rating>
+
+  <releases>
+    <release version="0.1.1" date="2026-07-15">
+      <description>
+        <p>Renames the GUI binary to pigmentlab to avoid a collision, and adds Flatpak packaging.</p>
+      </description>
+    </release>
+    <release version="0.1.0" date="2026-07-15">
+      <description>
+        <p>First release.</p>
+      </description>
+    </release>
+  </releases>
+</component>

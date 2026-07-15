@@ -52,6 +52,8 @@ modules:
         /app/share/applications/org.pigment.Pigment.desktop
       - install -Dm644 packaging/org.pigment.Pigment.Launcher.desktop
         /app/share/applications/org.pigment.Pigment.Launcher.desktop
+      - install -Dm644 packaging/org.pigment.Pigment.metainfo.xml
+        /app/share/metainfo/org.pigment.Pigment.metainfo.xml
       - for s in 48 64 128 256 512; do install -Dm644
         "packaging/icons/${s}x${s}/org.pigment.Pigment.png"
         "/app/share/icons/hicolor/${s}x${s}/apps/org.pigment.Pigment.png"; done
