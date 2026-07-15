@@ -3,6 +3,32 @@
 use std::fs;
 use std::io::{self, Write as _};
 use std::path::Path;
+use std::process::Command;
+
+/// Whether this process is running inside a Flatpak sandbox.
+///
+/// `flatpak` mounts `/.flatpak-info` into every sandbox, so its presence is the
+/// canonical signal. When true, host programs (`flatpak`, `xdg-mime`, …) are not
+/// on `$PATH` and must be reached via `flatpak-spawn --host`.
+pub(crate) fn in_flatpak() -> bool {
+    Path::new("/.flatpak-info").exists()
+}
+
+/// Build a [`Command`] for a program that must run on the host.
+///
+/// Native: runs `program` directly. Sandboxed: routes through
+/// `flatpak-spawn --host program`, which requires
+/// `--talk-name=org.freedesktop.Flatpak` in the manifest. Callers add arguments
+/// to the returned command as usual.
+pub(crate) fn host_command(program: &str) -> Command {
+    if in_flatpak() {
+        let mut cmd = Command::new("flatpak-spawn");
+        cmd.arg("--host").arg(program);
+        cmd
+    } else {
+        Command::new(program)
+    }
+}
 
 /// Atomically write `bytes` to `path`: write to a temp file in the same
 /// directory, `fsync` it, then `rename` over the target. On a single filesystem

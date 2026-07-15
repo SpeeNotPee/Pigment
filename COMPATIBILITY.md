@@ -50,12 +50,31 @@ libadwaita 1.4 floor can run it:
 **Rule of thumb:** anything on an **Ubuntu 24.04 base or newer**, or **Debian 13
 or newer**, works. The 22.04 / Debian 12 generation does not.
 
-## Coming: Flatpak
+## Flatpak (cross-distro)
 
-A Flatpak is the planned way to reach the distributions above that fall below
-the library floor (older Ubuntu/Debian LTS) and the Steam Deck. A Flatpak bundles
-its own GNOME runtime, so the host's GTK/libadwaita versions no longer matter and
-no Rust toolchain is needed to install. It is not yet published.
+A Flatpak bundles its own GNOME runtime, so the host's GTK/libadwaita versions
+**stop mattering** — Pigment then runs on every distro above, including the
+"too old" rows (Ubuntu 22.04, Debian 12, Mint 21, Pop!_OS 22.04) and the Steam
+Deck, with no Rust toolchain needed to install.
+
+The manifest lives at [`packaging/flatpak/org.pigment.Pigment.yaml`](packaging/flatpak/org.pigment.Pigment.yaml).
+Build and install it from a checkout:
+
+```sh
+flatpak install flathub org.flatpak.Builder   # one-time
+flatpak run org.flatpak.Builder --user --install --force-clean \
+  build-dir packaging/flatpak/org.pigment.Pigment.yaml
+flatpak run org.pigment.Pigment
+```
+
+Because Pigment is sandboxed but drives Sober (another Flatpak) on the host, the
+manifest grants `--talk-name=org.freedesktop.Flatpak` (to launch Sober and query
+its version via `flatpak-spawn --host`) and `--filesystem=~/.var/app/org.vinegarhq.Sober`
+(to read/write its config, mods, and logs). The code detects the sandbox and
+routes host commands accordingly.
+
+> Not yet on Flathub. The manifest builds from the local checkout; a Flathub
+> submission would pin a released source tarball instead.
 
 ---
 

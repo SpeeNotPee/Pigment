@@ -1,0 +1,61 @@
+# Flatpak manifest for Pigment.
+#
+# Build (from the repo root):
+#   flatpak-builder --user --install --force-clean build-dir \
+#     packaging/flatpak/org.pigment.Pigment.yaml
+# Run:
+#   flatpak run org.pigment.Pigment
+#
+# Pigment is sandboxed but must drive Sober (another Flatpak) on the host: it
+# reaches the host `flatpak`/`xdg-mime` via `flatpak-spawn --host` (hence
+# --talk-name=org.freedesktop.Flatpak) and reads/writes Sober's per-app dir
+# directly (hence the --filesystem grant). The code is sandbox-aware: see
+# pigment-core `util::in_flatpak` / `Sober::host_flatpak`.
+id: org.pigment.Pigment
+runtime: org.gnome.Platform
+runtime-version: '50'
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: pigmentlab
+
+finish-args:
+  # Display / rendering.
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  # roblox_api resolves universe IDs -> game names over HTTPS.
+  - --share=network
+  # Drive the host's Flatpak (launch Sober, query its version) and run host
+  # xdg-mime for the opt-in roblox:// handler takeover, via flatpak-spawn --host.
+  - --talk-name=org.freedesktop.Flatpak
+  # Read/write Sober's config, mods (asset_overlay), logs, and packaged APK.
+  - --filesystem=~/.var/app/org.vinegarhq.Sober:create
+  # Optional Discord Rich Presence IPC socket (native or Flatpak Discord).
+  - --filesystem=xdg-run/discord-ipc-0
+  - --filesystem=xdg-run/app/com.discordapp.Discord:ro
+
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin
+  env:
+    CARGO_HOME: /run/build/pigment/cargo
+
+modules:
+  - name: pigment
+    buildsystem: simple
+    build-commands:
+      - cargo build --offline --release --workspace
+      - install -Dm755 target/release/pigmentlab /app/bin/pigmentlab
+      - install -Dm755 target/release/pigment-launch /app/bin/pigment-launch
+      - install -Dm644 packaging/org.pigment.Pigment.desktop
+        /app/share/applications/org.pigment.Pigment.desktop
+      - install -Dm644 packaging/org.pigment.Pigment.Launcher.desktop
+        /app/share/applications/org.pigment.Pigment.Launcher.desktop
+      - for s in 48 64 128 256 512; do install -Dm644
+        "packaging/icons/${s}x${s}/org.pigment.Pigment.png"
+        "/app/share/icons/hicolor/${s}x${s}/apps/org.pigment.Pigment.png"; done
+    sources:
+      - type: dir
+        path: ../..
+      - cargo-sources.json

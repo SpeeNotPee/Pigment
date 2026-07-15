@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Pigment (Roblox Launcher)
+Comment=Applies your Pigment profile, then launches Roblox via Sober
+Exec=pigment-launch %u
+Icon=org.pigment.Pigment
+Terminal=false
+NoDisplay=true
+Categories=Game;
+MimeType=x-scheme-handler/roblox;x-scheme-handler/roblox-player;

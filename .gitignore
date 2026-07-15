@@ -1,5 +1,7 @@
 /target
 /dist
+/.flatpak-builder
+/build-dir
 /packaging/*.tar.gz
 /packaging/*.pkg.tar.zst
 /packaging/src

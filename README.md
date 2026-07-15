@@ -73,6 +73,21 @@ cd packaging
 makepkg -si
 ```
 
+### Flatpak (any distro)
+
+For non-Arch distros — including older Ubuntu/Debian LTS and the Steam Deck —
+build the Flatpak (bundles its own GTK/libadwaita, so host versions don't matter):
+
+```sh
+flatpak install flathub org.flatpak.Builder
+flatpak run org.flatpak.Builder --user --install --force-clean \
+  build-dir packaging/flatpak/org.pigment.Pigment.yaml
+flatpak run org.pigment.Pigment
+```
+
+The sandbox drives the Sober Flatpak via `flatpak-spawn --host`. See
+[COMPATIBILITY.md](COMPATIBILITY.md) for details.
+
 ## Layout
 
 - `pigment-core` — all logic (config, mods, APK, profiles, protocol, Sober).

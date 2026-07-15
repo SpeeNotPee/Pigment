@@ -49,6 +49,9 @@ pub struct Sober {
     paths: SoberPaths,
     /// The `flatpak` binary to invoke (overridable in tests).
     flatpak_bin: String,
+    /// Whether Pigment itself is sandboxed, so host `flatpak` calls must be
+    /// wrapped in `flatpak-spawn --host`.
+    sandboxed: bool,
 }
 
 impl Sober {
@@ -57,6 +60,23 @@ impl Sober {
         Self {
             paths,
             flatpak_bin: FLATPAK_BIN.to_string(),
+            sandboxed: crate::util::in_flatpak(),
+        }
+    }
+
+    /// The program and leading args that invoke `flatpak` on the host.
+    ///
+    /// Native: just `flatpak`. Sandboxed: `flatpak-spawn --host flatpak`, so the
+    /// call escapes Pigment's own sandbox and reaches the host's Flatpak install
+    /// (the same one that holds Sober).
+    fn host_flatpak(&self) -> (String, Vec<String>) {
+        if self.sandboxed {
+            (
+                "flatpak-spawn".to_string(),
+                vec!["--host".to_string(), self.flatpak_bin.clone()],
+            )
+        } else {
+            (self.flatpak_bin.clone(), Vec::new())
         }
     }
 
@@ -77,27 +97,25 @@ impl Sober {
     /// registered protocol handler forwards). With no URI, Sober opens its home
     /// screen.
     pub fn launch_spec(&self, uri: Option<&str>) -> LaunchSpec {
-        let mut args = vec!["run".to_string(), SOBER_APP_ID.to_string()];
+        let (program, mut args) = self.host_flatpak();
+        args.push("run".to_string());
+        args.push(SOBER_APP_ID.to_string());
         if let Some(uri) = uri {
             args.push(uri.to_string());
         }
-        LaunchSpec {
-            program: self.flatpak_bin.clone(),
-            args,
-        }
+        LaunchSpec { program, args }
     }
 
     /// Build the command that opens Sober's own settings dialog.
     pub fn settings_spec(&self) -> LaunchSpec {
-        LaunchSpec {
-            program: self.flatpak_bin.clone(),
-            args: vec![
-                "run".to_string(),
-                "--command=sober".to_string(),
-                SOBER_APP_ID.to_string(),
-                "config".to_string(),
-            ],
-        }
+        let (program, mut args) = self.host_flatpak();
+        args.extend([
+            "run".to_string(),
+            "--command=sober".to_string(),
+            SOBER_APP_ID.to_string(),
+            "config".to_string(),
+        ]);
+        LaunchSpec { program, args }
     }
 
     /// Spawn Sober, optionally into a deep-link URI. Returns immediately with the
@@ -110,8 +128,10 @@ impl Sober {
     ///
     /// Returns `false` if `flatpak` itself is missing.
     pub fn is_installed(&self) -> bool {
-        Command::new(&self.flatpak_bin)
-            .args(["info", SOBER_APP_ID])
+        let (program, mut args) = self.host_flatpak();
+        args.extend(["info".to_string(), SOBER_APP_ID.to_string()]);
+        Command::new(program)
+            .args(args)
             .output()
             .map(|o| o.status.success())
             .unwrap_or(false)
@@ -120,10 +140,9 @@ impl Sober {
     /// The installed Sober version (e.g. `"1.7.1"`), or `None` if not installed
     /// or unparseable.
     pub fn installed_version(&self) -> Option<String> {
-        let out = Command::new(&self.flatpak_bin)
-            .args(["info", SOBER_APP_ID])
-            .output()
-            .ok()?;
+        let (program, mut args) = self.host_flatpak();
+        args.extend(["info".to_string(), SOBER_APP_ID.to_string()]);
+        let out = Command::new(program).args(args).output().ok()?;
         if !out.status.success() {
             return None;
         }
@@ -174,6 +193,28 @@ mod tests {
             spec.args,
             vec!["run", "org.vinegarhq.Sober", "roblox://placeId=123"]
         );
+    }
+
+    #[test]
+    fn sandboxed_launch_routes_through_flatpak_spawn_host() {
+        let mut s = sober();
+        s.sandboxed = true;
+        let spec = s.launch_spec(Some("roblox://placeId=1"));
+        assert_eq!(spec.program, "flatpak-spawn");
+        assert_eq!(
+            spec.args,
+            vec![
+                "--host",
+                "flatpak",
+                "run",
+                "org.vinegarhq.Sober",
+                "roblox://placeId=1"
+            ]
+        );
+        // Settings routes through the host too.
+        let mut s2 = sober();
+        s2.sandboxed = true;
+        assert_eq!(s2.settings_spec().program, "flatpak-spawn");
     }
 
     #[test]

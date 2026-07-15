@@ -67,7 +67,10 @@ pub fn build() -> gtk::Widget {
     page.add(&general);
 
     // Enum combos.
-    let graphics = adw::PreferencesGroup::builder().title("Graphics & Input").build();
+    // PreferencesGroup titles are Pango markup, so the ampersand must be escaped.
+    let graphics = adw::PreferencesGroup::builder()
+        .title("Graphics &amp; Input")
+        .build();
     for (key, title, options) in ENUM_SETTINGS {
         let model = gtk::StringList::new(options);
         let current = config.get(key).and_then(|v| v.as_str()).unwrap_or("");

@@ -13,7 +13,6 @@
 
 use std::io;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 /// The URI schemes Roblox uses to launch a game.
 pub const ROBLOX_SCHEMES: &[&str] = &["x-scheme-handler/roblox", "x-scheme-handler/roblox-player"];
@@ -82,7 +81,7 @@ pub fn launcher_desktop_file(exec: &Path) -> String {
 /// The desktop-file id currently handling `roblox:` (e.g.
 /// `org.vinegarhq.Sober.desktop`), via `xdg-mime query default`.
 pub fn current_handler() -> Option<String> {
-    let out = Command::new("xdg-mime")
+    let out = crate::util::host_command("xdg-mime")
         .args(["query", "default", ROBLOX_SCHEMES[0]])
         .output()
         .ok()?;
@@ -106,16 +105,26 @@ pub fn pigment_is_handler() -> bool {
 /// service cache (ksycoca), not `mimeapps.list` directly. So we refresh the
 /// desktop caches between writing the file and calling `xdg-mime`.
 pub fn register(launch_exec: &Path) -> Result<(), ProtocolError> {
-    let dir = user_applications_dir().ok_or(ProtocolError::NoApplicationsDir)?;
-    let path = dir.join(PIGMENT_DESKTOP);
-    let contents = launcher_desktop_file(launch_exec);
-    crate::util::write_atomic(&path, contents.as_bytes())
-        .map_err(|source| ProtocolError::Write {
-            path: path.clone(),
-            source,
+    // Natively, Pigment writes its own handler desktop file into the user
+    // applications dir. Inside a Flatpak sandbox that dir is redirected to the
+    // app's private data and the host can't see it — instead Flatpak *exports*
+    // the launcher desktop file bundled in the image (see the manifest's
+    // `org.pigment.Pigment.Launcher.desktop`), so here we only set the default
+    // association, routing `xdg-mime` through the host.
+    if crate::util::in_flatpak() {
+        refresh_desktop_caches(None);
+    } else {
+        let dir = user_applications_dir().ok_or(ProtocolError::NoApplicationsDir)?;
+        let path = dir.join(PIGMENT_DESKTOP);
+        let contents = launcher_desktop_file(launch_exec);
+        crate::util::write_atomic(&path, contents.as_bytes()).map_err(|source| {
+            ProtocolError::Write {
+                path: path.clone(),
+                source,
+            }
         })?;
-
-    refresh_desktop_caches(&dir);
+        refresh_desktop_caches(Some(&dir));
+    }
 
     for scheme in ROBLOX_SCHEMES {
         xdg_mime_default(PIGMENT_DESKTOP, scheme)?;
@@ -127,12 +136,14 @@ pub fn register(launch_exec: &Path) -> Result<(), ProtocolError> {
 /// is visible to handler lookup. Every tool here is optional: missing ones are
 /// skipped, and none can fail registration. `update-desktop-database` is the
 /// freedesktop standard; `kbuildsycoca6`/`5` rebuild KDE's service cache.
-fn refresh_desktop_caches(applications_dir: &Path) {
-    let _ = Command::new("update-desktop-database")
-        .arg(applications_dir)
-        .output();
+fn refresh_desktop_caches(applications_dir: Option<&Path>) {
+    let mut cmd = crate::util::host_command("update-desktop-database");
+    if let Some(dir) = applications_dir {
+        cmd.arg(dir);
+    }
+    let _ = cmd.output();
     for tool in ["kbuildsycoca6", "kbuildsycoca5"] {
-        let _ = Command::new(tool).arg("--noincremental").output();
+        let _ = crate::util::host_command(tool).arg("--noincremental").output();
     }
 }
 
@@ -146,7 +157,7 @@ pub fn restore_sober() -> Result<(), ProtocolError> {
 
 /// `xdg-mime default <desktop> <scheme>`, surfacing failures.
 fn xdg_mime_default(desktop: &str, scheme: &str) -> Result<(), ProtocolError> {
-    let out = Command::new("xdg-mime")
+    let out = crate::util::host_command("xdg-mime")
         .args(["default", desktop, scheme])
         .output()
         .map_err(|source| ProtocolError::Spawn {
