@@ -58,8 +58,8 @@ sudo make install PREFIX=/usr
 Install with your AUR helper:
 
 ```sh
-yay -S pigment        # latest release
-yay -S pigment-git    # builds the latest git main
+yay -S pigment-launcher        # latest release
+yay -S pigment-launcher-git    # builds the latest git main
 ```
 
 Works on Arch and its derivatives (CachyOS, EndeavourOS, Manjaro). See

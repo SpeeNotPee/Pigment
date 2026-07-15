@@ -19,7 +19,8 @@ with a "version too old" error — it does not build a broken binary.
 
 ## Arch-based
 
-The AUR packages (`pigment`, `pigment-git`) work here.
+The AUR packages (`pigment-launcher`, `pigment-launcher-git`) work here.
+(The base name `pigment` on the AUR is an unrelated image color-palette app.)
 
 | Distro | Status | Notes |
 |---|---|---|
