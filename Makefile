@@ -39,7 +39,7 @@ build:
 # Note: depends on `build` so `make install` works standalone. Under makepkg,
 # build() already ran cargo, so this cargo invocation is a fast no-op.
 install: build
-	install -Dm755 target/release/pigment        $(BINDIR)/pigment
+	install -Dm755 target/release/pigmentlab      $(BINDIR)/pigmentlab
 	install -Dm755 target/release/pigment-launch  $(BINDIR)/pigment-launch
 	install -Dm644 packaging/$(APPID).desktop     $(APPDIR)/$(APPID).desktop
 	@for s in $(ICON_SIZES); do \
@@ -48,10 +48,10 @@ install: build
 	done
 	@echo
 	@echo "Pigment installed to $(PREFIX)."
-	@echo "If $(PREFIX)/bin is not on your PATH, add it, then run: pigment"
+	@echo "If $(PREFIX)/bin is not on your PATH, add it, then run: pigmentlab"
 
 uninstall:
-	rm -f $(BINDIR)/pigment
+	rm -f $(BINDIR)/pigmentlab
 	rm -f $(BINDIR)/pigment-launch
 	rm -f $(APPDIR)/$(APPID).desktop
 	@for s in $(ICON_SIZES); do rm -f $(ICONBASE)/$${s}x$${s}/apps/$(APPID).png; done

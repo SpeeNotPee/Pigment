@@ -45,7 +45,7 @@ Per-user (no root):
 make install PREFIX=$HOME/.local
 ```
 
-Make sure `$HOME/.local/bin` is on your `PATH`, then run `pigment`.
+Make sure `$HOME/.local/bin` is on your `PATH`, then run `pigmentlab`.
 
 System-wide:
 
@@ -76,7 +76,7 @@ makepkg -si
 ## Layout
 
 - `pigment-core` — all logic (config, mods, APK, profiles, protocol, Sober).
-- `pigment` — the GTK4/libadwaita GUI.
+- `pigment` — the GTK4/libadwaita GUI (installs the `pigmentlab` binary).
 - `pigment-launch` — the fast `roblox://` protocol handler.
 
 ## Uninstall

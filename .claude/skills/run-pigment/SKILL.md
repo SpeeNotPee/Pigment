@@ -8,7 +8,7 @@ description: Build, launch, and screenshot Pigment — the GTK4/libadwaita Roblo
 Pigment is a **Rust + GTK4/libadwaita desktop GUI** (a Bloxstrap-class front end
 for Sober) plus a tiny GUI-less protocol-handler binary. It's a native GTK app,
 so there is no browser or `chromium-cli` path — the agent path is
-**`driver.sh`**, which launches the real `pigment` binary on a private **Xvfb**
+**`driver.sh`**, which launches the real `pigmentlab` binary on a private **Xvfb**
 display and captures a screenshot with ImageMagick `import`. This never touches
 the user's real Wayland/KDE session.
 
@@ -17,7 +17,7 @@ All paths below are relative to the repo root (`<repo>/`). The driver lives at
 
 The workspace has three crates:
 - `pigment-core` — all logic (config, mods, APK, profiles, protocol, Sober).
-- `pigment` — the GTK4 GUI binary (what you screenshot).
+- `pigment` — the GTK4 GUI crate; builds the `pigmentlab` binary (what you screenshot).
 - `pigment-launch` — the latency-critical `roblox://` handler; **launching it
   actually starts Sober** (see Gotchas).
 
@@ -33,12 +33,12 @@ Runtime libs + capture tools. All were already present on the dev machine
 ## Build
 
 ```bash
-cargo build --bin pigment --bin pigment-launch
+cargo build --bin pigmentlab --bin pigment-launch
 ```
 
 Fast and clean (finishes in ~1.5s incrementally). `cargo build --release
 --workspace` (what the Makefile's `make build` runs) also works; the driver
-prefers `target/debug/pigment` and falls back to `target/release/pigment`.
+prefers `target/debug/pigmentlab` and falls back to `target/release/pigmentlab`.
 
 ## Run (agent path) — driver.sh
 
@@ -73,7 +73,7 @@ driver's 3s wait covers that.
 On the user's real session, just:
 
 ```bash
-cargo run --bin pigment
+cargo run --bin pigmentlab
 ```
 
 A window opens; Ctrl-C or close it to quit. Useless headless (no display), which
@@ -110,8 +110,8 @@ tests). Fast, no display needed.
 
 ## Troubleshooting
 
-- **`pigment binary not found`** → run the Build step first
-  (`cargo build --bin pigment`).
+- **`pigmentlab binary not found`** → run the Build step first
+  (`cargo build --bin pigmentlab`).
 - **Screenshot is all black / app exited early** → the driver prints
   `/tmp/pigment-app.log`; check it. Usually a missing GTK/adwaita lib
   (`pkg-config --exists gtk4 libadwaita-1`) or a leftover Xvfb on `:99`

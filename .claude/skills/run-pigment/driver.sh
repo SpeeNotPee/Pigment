@@ -13,7 +13,7 @@
 #   driver.sh profiles              # Profiles page
 #   driver.sh about /tmp/about.png  # About dialog to a custom path
 #
-# Requires: an already-built ./target/debug/pigment (run `cargo build --bin pigment`).
+# Requires: an already-built ./target/debug/pigmentlab (run `cargo build --bin pigmentlab`).
 set -euo pipefail
 
 # Resolve repo root: this script lives at <root>/.claude/skills/run-pigment/driver.sh
@@ -25,10 +25,10 @@ DISPLAY_NUM=99
 SCR_DIR="$ROOT/.claude/skills/run-pigment/screenshots"
 mkdir -p "$SCR_DIR"
 
-BIN="$ROOT/target/debug/pigment"
-[ -x "$BIN" ] || BIN="$ROOT/target/release/pigment"
+BIN="$ROOT/target/debug/pigmentlab"
+[ -x "$BIN" ] || BIN="$ROOT/target/release/pigmentlab"
 if [ ! -x "$BIN" ]; then
-  echo "pigment binary not found. Run: cargo build --bin pigment" >&2
+  echo "pigmentlab binary not found. Run: cargo build --bin pigmentlab" >&2
   exit 1
 fi
 
