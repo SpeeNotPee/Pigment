@@ -32,19 +32,45 @@ flatpak run net.pigmentlab.Pigment
 
 ## Lint before submitting
 
-Flathub gates submissions on `flatpak-builder-lint`:
+Flathub gates submissions on `flatpak-builder-lint`, which has two separate
+checks — the manifest, and the built repo:
 
 ```sh
 cd packaging/flatpak/flathub
 flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest \
   net.pigmentlab.Pigment.yaml
+
+# The repo check needs a build with --repo:
+flatpak run org.flatpak.Builder --user --force-clean \
+  --repo=$HOME/.cache/pigment-lint-repo build-dir net.pigmentlab.Pigment.yaml
+flatpak run --command=flatpak-builder-lint org.flatpak.Builder repo \
+  $HOME/.cache/pigment-lint-repo
 ```
+
+### Screenshot lint errors are a local artifact — ignore them
+
+A plain local `repo` lint also reports `appstream-external-screenshot-url` and
+`appstream-screenshots-not-mirrored-in-ostree`. **These are expected locally** —
+Flathub's buildbot mirrors screenshots itself for manifest-based submissions like
+ours. Verified 2026-07-16 by reproducing what the buildbot does:
+
+```sh
+rm -rf .flatpak-builder    # the mirroring runs in the `cleanup` stage; a cache
+                           # hit silently skips it and the flags do nothing
+flatpak run org.flatpak.Builder --user --force-clean \
+  --compose-url-policy=full --mirror-screenshots-url=https://dl.flathub.org/media \
+  --repo=$HOME/.cache/pigment-mirror-repo build-dir net.pigmentlab.Pigment.yaml
+```
+
+That commits a `screenshots/x86_64` ostree ref (all 4 screenshots fetched and
+resized into Flathub's thumbnail set) and **both screenshot errors disappear**,
+leaving only the two architectural errors below.
 
 ### Known lint errors — an exception request is required
 
-As of v0.2.0 the manifest trips two linter errors. **Both are inherent to what
-Pigment is** (a front end that drives Sober, which lives on the host), so neither
-can be "fixed" without gutting the app:
+After the screenshot noise above is accounted for, exactly two linter errors
+remain. **Both are inherent to what Pigment is** (a front end that drives Sober,
+which lives on the host), so neither can be "fixed" without gutting the app:
 
 | Error | Why we need it |
 | --- | --- |
