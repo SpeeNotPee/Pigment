@@ -56,6 +56,6 @@ modules:
         "/app/share/icons/hicolor/${s}x${s}/apps/net.pigmentlab.Pigment.png"; done
     sources:
       - type: archive
-        url: https://github.com/SpeeNotPee/Pigment/archive/refs/tags/v0.1.2.tar.gz
-        sha256: 69dffbe3bc300b59f74f67bad0f6bb4645a913669a6f468a9fba11e4b67f39d5
+        url: https://github.com/SpeeNotPee/Pigment/archive/refs/tags/v0.2.0.tar.gz
+        sha256: 16285a1929825b1f9cf70b492de22fc7ccb781d6a5dfcb868dec356fc6faa938
       - cargo-sources.json
