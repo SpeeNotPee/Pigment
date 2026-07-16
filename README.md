@@ -81,8 +81,8 @@ build the Flatpak (bundles its own GTK/libadwaita, so host versions don't matter
 ```sh
 flatpak install flathub org.flatpak.Builder
 flatpak run org.flatpak.Builder --user --install --force-clean \
-  build-dir packaging/flatpak/org.pigment.Pigment.yaml
-flatpak run org.pigment.Pigment
+  build-dir packaging/flatpak/net.pigmentlab.Pigment.yaml
+flatpak run net.pigmentlab.Pigment
 ```
 
 The sandbox drives the Sober Flatpak via `flatpak-spawn --host`. See

@@ -12,8 +12,8 @@
 PREFIX  ?= /usr/local
 DESTDIR ?=
 CARGO   ?= cargo
-APPID   := org.pigment.Pigment
-VERSION := 0.1.2
+APPID   := net.pigmentlab.Pigment
+VERSION := 0.2.0
 
 BINDIR     := $(DESTDIR)$(PREFIX)/bin
 APPDIR     := $(DESTDIR)$(PREFIX)/share/applications

@@ -22,7 +22,7 @@ pub fn build() -> gtk::Widget {
     // Title block. Uses the installed Pigment app icon; falls back gracefully to
     // a generic icon when running uninstalled.
     let icon = gtk::Image::builder()
-        .icon_name("org.pigment.Pigment")
+        .icon_name("net.pigmentlab.Pigment")
         .pixel_size(96)
         .build();
     let heading = gtk::Label::builder()

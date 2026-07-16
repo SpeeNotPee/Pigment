@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>org.pigment.Pigment</id>
+  <id>net.pigmentlab.Pigment</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT</project_license>
 
@@ -34,7 +34,7 @@
     </p>
   </description>
 
-  <launchable type="desktop-id">org.pigment.Pigment.desktop</launchable>
+  <launchable type="desktop-id">net.pigmentlab.Pigment.desktop</launchable>
 
   <categories>
     <category>Game</category>
@@ -78,6 +78,15 @@
   </content_rating>
 
   <releases>
+    <release version="0.2.0" date="2026-07-16">
+      <description>
+        <p>
+          Renames the application ID to net.pigmentlab.Pigment. Existing desktop
+          entries and the roblox:// handler registration are re-created under the
+          new ID; reinstalling picks this up automatically.
+        </p>
+      </description>
+    </release>
     <release version="0.1.2" date="2026-07-15">
       <description>
         <p>Flatpak packaging with AppStream metadata; sandbox-aware Sober integration.</p>

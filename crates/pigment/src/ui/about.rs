@@ -83,7 +83,7 @@ pub(crate) fn show_about(parent: &adw::ApplicationWindow) {
     let about = adw::AboutWindow::builder()
         .transient_for(parent)
         .modal(true)
-        .application_icon("org.pigment.Pigment")
+        .application_icon("net.pigmentlab.Pigment")
         .application_name("Pigment")
         .version(env!("CARGO_PKG_VERSION"))
         .developer_name("Pigment contributors")

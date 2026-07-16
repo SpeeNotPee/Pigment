@@ -57,14 +57,14 @@ A Flatpak bundles its own GNOME runtime, so the host's GTK/libadwaita versions
 "too old" rows (Ubuntu 22.04, Debian 12, Mint 21, Pop!_OS 22.04) and the Steam
 Deck, with no Rust toolchain needed to install.
 
-The manifest lives at [`packaging/flatpak/org.pigment.Pigment.yaml`](packaging/flatpak/org.pigment.Pigment.yaml).
+The manifest lives at [`packaging/flatpak/net.pigmentlab.Pigment.yaml`](packaging/flatpak/net.pigmentlab.Pigment.yaml).
 Build and install it from a checkout:
 
 ```sh
 flatpak install flathub org.flatpak.Builder   # one-time
 flatpak run org.flatpak.Builder --user --install --force-clean \
-  build-dir packaging/flatpak/org.pigment.Pigment.yaml
-flatpak run org.pigment.Pigment
+  build-dir packaging/flatpak/net.pigmentlab.Pigment.yaml
+flatpak run net.pigmentlab.Pigment
 ```
 
 Because Pigment is sandboxed but drives Sober (another Flatpak) on the host, the

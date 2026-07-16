@@ -10,7 +10,7 @@ use adw::prelude::*;
 use gtk::glib;
 
 /// Application id; also the desktop-file / protocol-handler base name.
-const APP_ID: &str = "org.pigment.Pigment";
+const APP_ID: &str = "net.pigmentlab.Pigment";
 
 fn main() -> glib::ExitCode {
     let app = adw::Application::builder().application_id(APP_ID).build();

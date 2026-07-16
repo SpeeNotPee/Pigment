@@ -21,7 +21,7 @@ pub const ROBLOX_SCHEMES: &[&str] = &["x-scheme-handler/roblox", "x-scheme-handl
 pub const SOBER_DESKTOP: &str = "org.vinegarhq.Sober.desktop";
 
 /// The desktop file id Pigment installs for its launcher.
-pub const PIGMENT_DESKTOP: &str = "org.pigment.Pigment.Launcher.desktop";
+pub const PIGMENT_DESKTOP: &str = "net.pigmentlab.Pigment.Launcher.desktop";
 
 /// Errors from handler registration.
 #[derive(Debug, thiserror::Error)]
@@ -109,7 +109,7 @@ pub fn register(launch_exec: &Path) -> Result<(), ProtocolError> {
     // applications dir. Inside a Flatpak sandbox that dir is redirected to the
     // app's private data and the host can't see it — instead Flatpak *exports*
     // the launcher desktop file bundled in the image (see the manifest's
-    // `org.pigment.Pigment.Launcher.desktop`), so here we only set the default
+    // `net.pigmentlab.Pigment.Launcher.desktop`), so here we only set the default
     // association, routing `xdg-mime` through the host.
     if crate::util::in_flatpak() {
         refresh_desktop_caches(None);

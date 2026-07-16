@@ -2,16 +2,16 @@
 #
 # Build (from the repo root):
 #   flatpak-builder --user --install --force-clean build-dir \
-#     packaging/flatpak/org.pigment.Pigment.yaml
+#     packaging/flatpak/net.pigmentlab.Pigment.yaml
 # Run:
-#   flatpak run org.pigment.Pigment
+#   flatpak run net.pigmentlab.Pigment
 #
 # Pigment is sandboxed but must drive Sober (another Flatpak) on the host: it
 # reaches the host `flatpak`/`xdg-mime` via `flatpak-spawn --host` (hence
 # --talk-name=org.freedesktop.Flatpak) and reads/writes Sober's per-app dir
 # directly (hence the --filesystem grant). The code is sandbox-aware: see
 # pigment-core `util::in_flatpak` / `Sober::host_flatpak`.
-id: org.pigment.Pigment
+id: net.pigmentlab.Pigment
 runtime: org.gnome.Platform
 runtime-version: '50'
 sdk: org.gnome.Sdk
@@ -48,15 +48,15 @@ modules:
       - cargo build --offline --release --workspace
       - install -Dm755 target/release/pigmentlab /app/bin/pigmentlab
       - install -Dm755 target/release/pigment-launch /app/bin/pigment-launch
-      - install -Dm644 packaging/org.pigment.Pigment.desktop
-        /app/share/applications/org.pigment.Pigment.desktop
-      - install -Dm644 packaging/org.pigment.Pigment.Launcher.desktop
-        /app/share/applications/org.pigment.Pigment.Launcher.desktop
-      - install -Dm644 packaging/org.pigment.Pigment.metainfo.xml
-        /app/share/metainfo/org.pigment.Pigment.metainfo.xml
+      - install -Dm644 packaging/net.pigmentlab.Pigment.desktop
+        /app/share/applications/net.pigmentlab.Pigment.desktop
+      - install -Dm644 packaging/net.pigmentlab.Pigment.Launcher.desktop
+        /app/share/applications/net.pigmentlab.Pigment.Launcher.desktop
+      - install -Dm644 packaging/net.pigmentlab.Pigment.metainfo.xml
+        /app/share/metainfo/net.pigmentlab.Pigment.metainfo.xml
       - for s in 48 64 128 256 512; do install -Dm644
-        "packaging/icons/${s}x${s}/org.pigment.Pigment.png"
-        "/app/share/icons/hicolor/${s}x${s}/apps/org.pigment.Pigment.png"; done
+        "packaging/icons/${s}x${s}/net.pigmentlab.Pigment.png"
+        "/app/share/icons/hicolor/${s}x${s}/apps/net.pigmentlab.Pigment.png"; done
     sources:
       - type: dir
         path: ../..
