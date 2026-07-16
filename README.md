@@ -100,6 +100,11 @@ The sandbox drives the Sober Flatpak via `flatpak-spawn --host`. See
 make uninstall PREFIX=$HOME/.local   # match your install PREFIX
 ```
 
+## Roadmap
+
+[ROADMAP.md](ROADMAP.md) covers what's left, the known verification gaps, and what
+Pigment deliberately won't do.
+
 ## Feedback & bug reports
 
 Found a bug or have an idea? Please [open an issue](https://github.com/SpeeNotPee/Pigment/issues/new/choose).
