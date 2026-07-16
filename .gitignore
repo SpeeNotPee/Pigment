@@ -6,3 +6,5 @@ build-dir/
 /packaging/*.pkg.tar.zst
 /packaging/src
 /packaging/pkg
+.vercel/
+.env*

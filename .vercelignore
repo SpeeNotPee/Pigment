@@ -1,0 +1,5 @@
+# The Vercel project serves docs/ (its Root Directory). Everything else in this
+# repo is source — including target/, which is ~4.5 GB and 13k files and will
+# abort the upload if it is not excluded here.
+/*
+!/docs
