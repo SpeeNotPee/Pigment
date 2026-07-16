@@ -1,0 +1,401 @@
+<title>Pigment Documentation</title>
+<meta name="description" content="How to install, configure and use Pigment — the Bloxstrap-class launcher for Roblox on Linux, built on the Sober runtime.">
+<link rel="canonical" href="https://pigmentlab.net/guide.html">
+
+<style>
+__THEME__
+
+/* ---- Guide ------------------------------------------------------------- */
+.doc { width: min(100% - 28px, 1180px); margin-inline: auto; padding: 68px 0 28px;
+  display: grid; grid-template-columns: 15rem 1fr; gap: var(--gap); align-items: start; }
+.doc > .col { display: grid; gap: var(--gap); min-width: 0; }
+@media (max-width: 900px) { .doc { grid-template-columns: 1fr; } }
+
+/* The contents window rides along on desktop; on narrow screens it just sits
+   at the top like any other window. */
+.side { position: sticky; top: 54px; }
+@media (max-width: 900px) { .side { position: static; } }
+.toc { display: grid; gap: .05rem; margin: 0; }
+.toc a { text-decoration: none; color: var(--muted); padding: .1rem .3rem;
+  border-radius: 4px; overflow-wrap: anywhere; }
+.toc a .f { color: var(--dim); }
+.toc a:hover { color: var(--text); background: rgb(255 255 255 / .06); }
+.toc a[aria-current="true"] { color: var(--violet); background: rgb(168 132 247 / .1); }
+.toc a[aria-current="true"] .f { color: var(--violet); }
+
+.win > .body > h2 { font-size: 1.15rem; font-weight: 700; margin: 0 0 .7rem;
+  letter-spacing: -.02em; color: var(--text); }
+.prose > :first-child { margin-top: 0; }
+.prose > :last-child { margin-bottom: 0; }
+.prose p { margin: 0 0 .85rem; color: var(--muted); max-width: 78ch; }
+.prose h3 { font-size: 14px; font-weight: 700; color: var(--violet);
+  margin: 1.4rem 0 .5rem; scroll-margin-top: 54px; }
+.prose ul, .prose ol { margin: 0 0 .85rem; padding-left: 1.1rem; color: var(--muted); max-width: 78ch; }
+.prose li { margin-bottom: .2rem; }
+.prose li::marker { color: var(--violet); }
+.prose a { color: var(--blue); text-decoration: none; }
+.prose a:hover { text-decoration: underline; }
+.prose b { color: var(--text); font-weight: 700; }
+.prose blockquote { margin: 0 0 .85rem; padding-left: .8rem;
+  border-left: 2px solid var(--edge-2); color: var(--dim); }
+code.inl { background: var(--sunk); border: 1px solid var(--edge); border-radius: 4px;
+  padding: .05rem .3rem; color: var(--text); font-size: 12.5px; overflow-wrap: anywhere; }
+/* A pre block from the old docs: same slab as a copyable command, but it may be
+   long, so it scrolls on its own rather than widening the page. */
+.run.block { align-items: flex-start; }
+.run.block code { white-space: pre; overflow-x: auto; flex: 1; min-width: 0; }
+</style>
+
+<a class="skip" href="#overview">Skip to content</a>
+
+<div class="wm">
+  <a class="tag" href="index.html">▸ pigment</a>
+  <span class="ws">~/pigmentlab/docs &nbsp;·&nbsp; <b>v0.2.0</b></span>
+  <nav aria-label="Main">
+    <a href="index.html">home</a>
+    <a href="index.html#install" class="keep">install</a>
+    <a href="guide.html" aria-current="page" class="keep">docs</a>
+    <a href="https://github.com/SpeeNotPee/Pigment">github</a>
+  </nav>
+  <a class="go" href="index.html#install">install</a>
+</div>
+
+<main class="doc">
+  <div class="col side">
+    <section class="win">
+      <header><span class="dots"><i></i><i></i><i></i></span><span class="wt">contents — zsh</span></header>
+      <div class="body">
+        <p class="cmd"><span class="u">you</span><span class="at">@pigmentlab</span><span class="d">:~$</span> ls docs/</p>
+        <nav class="toc" id="toc" aria-label="Contents">
+            <a href="#overview"><span class="f">./</span>overview</a>
+            <a href="#requirements"><span class="f">./</span>requirements</a>
+            <a href="#installation"><span class="f">./</span>installation</a>
+            <a href="#first-run"><span class="f">./</span>first-run</a>
+            <a href="#settings"><span class="f">./</span>settings</a>
+            <a href="#fastflags"><span class="f">./</span>fastflags</a>
+            <a href="#mods"><span class="f">./</span>mods</a>
+            <a href="#profiles"><span class="f">./</span>profiles</a>
+            <a href="#activity-discord"><span class="f">./</span>activity-discord</a>
+            <a href="#default-launcher"><span class="f">./</span>default-launcher</a>
+            <a href="#file-locations"><span class="f">./</span>file-locations</a>
+            <a href="#troubleshooting"><span class="f">./</span>troubleshooting</a>
+            <a href="#faq"><span class="f">./</span>faq</a>
+            <a href="#feedback-bug-reports"><span class="f">./</span>feedback-bug-reports</a>
+            <a href="#terms-of-use"><span class="f">./</span>terms-of-use</a>
+            <a href="#privacy"><span class="f">./</span>privacy</a>
+        </nav>
+      </div>
+    </section>
+  </div>
+
+  <div class="col">
+    <section class="win" id="overview">
+      <header><span class="dots"><i></i><i></i><i></i></span><span class="wt">overview — zsh</span></header>
+      <div class="body">
+        <p class="cmd"><span class="u">you</span><span class="at">@pigmentlab</span><span class="d">:~$</span> cat README.md</p>
+        <h2>Overview</h2>
+        <div class="prose">
+          <p>Pigment is a front end for <a href="https://sober.vinegarhq.org/">Sober</a>, the runtime that runs the
+  Android Roblox client on Linux. Roblox’s Hyperion anti-cheat blocks the Windows Player under Wine, so Sober
+  is the only working path — but Sober is configured by hand-editing a JSON file. Pigment gives it a real UI:
+  settings, profiles, FastFlags, mods, activity and Discord presence.</p>
+          <p>Pigment never reimplements the runtime. It <b>drives Sober as-is</b>: it reads and safely rewrites Sober’s
+  config, composes mods into Sober’s asset overlay, launches Sober, and can (optionally) become the
+  <code class="inl">roblox://</code> handler so it applies your profile before handing off.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="win" id="requirements">
+      <header><span class="dots"><i></i><i></i><i></i></span><span class="wt">requirements — zsh</span></header>
+      <div class="body">
+        <p class="cmd"><span class="u">you</span><span class="at">@pigmentlab</span><span class="d">:~$</span> pigmentlab --requires</p>
+        <h2>Requirements</h2>
+        <div class="prose">
+          <ul><li>The <b>Sober</b> Flatpak: <code class="inl">org.vinegarhq.Sober</code></li>
+<li><b>GTK 4.12+</b> and <b>libadwaita 1.4+</b> at runtime</li>
+<li><b>Rust 1.96+</b> and Cargo — only if you build from source</li>
+<li>Optional: <code class="inl">xdg-utils</code> (to set the default handler) and Discord (for Rich Presence)</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="win" id="installation">
+      <header><span class="dots"><i></i><i></i><i></i></span><span class="wt">installation — zsh</span></header>
+      <div class="body">
+        <p class="cmd"><span class="u">you</span><span class="at">@pigmentlab</span><span class="d">:~$</span> pigment --install --help</p>
+        <h2>Installation</h2>
+        <div class="prose">
+          <h3 id="1-install-sober">1. Install Sober</h3>
+          <div class="run block"><span class="p">$</span><code>flatpak install flathub org.vinegarhq.Sober</code><button class="copy" data-copy="flatpak install flathub org.vinegarhq.Sober">copy</button></div>
+          <p>Open any experience once so Sober creates its config, or just launch it from Pigment’s Home page.</p>
+          <h3 id="2-install-pigment">2. Install Pigment</h3>
+          <p><b>Arch, CachyOS, EndeavourOS, Manjaro</b> — from the AUR:</p>
+          <div class="run block"><span class="p">$</span><code>yay -S pigment-launcher</code><button class="copy" data-copy="yay -S pigment-launcher">copy</button></div>
+          <p><code class="inl">pigment-launcher-git</code> tracks <code class="inl">main</code> if you’d rather live on the edge.</p>
+          <p><b>Steam Deck, Ubuntu 24.04+, Mint 22+, Pop!_OS</b> — Flatpak. The Flathub submission is still in review; until it lands, build it from the manifest in the repo:</p>
+          <div class="run block"><span class="p">$</span><code>flatpak run org.flatpak.Builder --user --install --force-clean \
+  build-dir packaging/flatpak/net.pigmentlab.Pigment.yaml</code><button class="copy" data-copy="flatpak run org.flatpak.Builder --user --install --force-clean \
+  build-dir packaging/flatpak/net.pigmentlab.Pigment.yaml">copy</button></div>
+          <p><b>Any distro</b> — from source:</p>
+          <div class="run block"><span class="p">$</span><code>git clone https://github.com/SpeeNotPee/Pigment.git
+cd Pigment
+make install PREFIX=$HOME/.local</code><button class="copy" data-copy="git clone https://github.com/SpeeNotPee/Pigment.git
+cd Pigment
+make install PREFIX=$HOME/.local">copy</button></div>
+          <p>Make sure <code class="inl">$HOME/.local/bin</code> is on your <code class="inl">PATH</code>. System-wide: <code class="inl">sudo make install PREFIX=/usr</code>.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="win" id="first-run">
+      <header><span class="dots"><i></i><i></i><i></i></span><span class="wt">first run — zsh</span></header>
+      <div class="body">
+        <p class="cmd"><span class="u">you</span><span class="at">@pigmentlab</span><span class="d">:~$</span> pigmentlab</p>
+        <h2>First run</h2>
+        <div class="prose">
+          <p>Launch <code class="inl">pigmentlab</code> from your app menu or terminal. The <b>Home</b> page shows whether Sober is installed and detected, its version, and whether its config exists yet. Press <span class="kbd">Launch Roblox</span> to start Sober. If Sober has never run, open it once so it can create its configuration — then the Settings, FastFlags and other pages light up.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="win" id="settings">
+      <header><span class="dots"><i></i><i></i><i></i></span><span class="wt">settings — zsh</span></header>
+      <div class="body">
+        <p class="cmd"><span class="u">you</span><span class="at">@pigmentlab</span><span class="d">:~$</span> man pigment-settings</p>
+        <h2>Settings</h2>
+        <div class="prose">
+          <p>A typed switch and dropdown for each Sober config key: Discord presence, the join button, Feral GameMode,
+  OpenGL fallback, HiDPI scaling, server-location popup, close-on-leave, gamepad access, the console UI, plus
+  the graphics-optimization and touch-mode dropdowns.</p>
+          <p>Change what you like and press <span class="kbd">Apply Changes</span>. Pigment reloads the file first, so
+  keys it doesn’t manage — and any change Sober’s own settings made — are preserved. Restart Roblox to apply.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="win" id="fastflags">
+      <header><span class="dots"><i></i><i></i><i></i></span><span class="wt">fastflags — zsh</span></header>
+      <div class="body">
+        <p class="cmd"><span class="u">you</span><span class="at">@pigmentlab</span><span class="d">:~$</span> man pigment-fastflags</p>
+        <h2>FastFlags</h2>
+        <div class="prose">
+          <p>FastFlags are Roblox engine variables. Pigment edits them as JSON in the <b>exact format Bloxstrap uses</b>,
+  so a Windows preset pastes straight in.</p>
+          <ul><li><b>Apply FastFlags</b> — validates the JSON (it must be an object) and saves it.</li>
+    <li><b>Clear All</b> — removes every FastFlag in one click, resetting to an empty set.</li>
+    <li><b>Import</b> — paste a Bloxstrap/ClientAppSettings JSON body and Apply.</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="win" id="mods">
+      <header><span class="dots"><i></i><i></i><i></i></span><span class="wt">mods — zsh</span></header>
+      <div class="body">
+        <p class="cmd"><span class="u">you</span><span class="at">@pigmentlab</span><span class="d">:~$</span> man pigment-mods</p>
+        <h2>Mods</h2>
+        <div class="prose">
+          <p>Mods replace game assets through Sober’s sanctioned <code class="inl">asset_overlay</code>. A mod is a folder
+  that mirrors Roblox’s asset layout — for example
+  <code class="inl">content/textures/Cursors/KeyboardMouse/ArrowCursor.png</code>.</p>
+          <ul><li><b>Install mod from folder…</b> copies the folder into your mod library.</li>
+    <li>Each mod is <b>validated against the real Roblox APK</b>; files at paths Roblox doesn’t ship are flagged
+    as “won’t apply”.</li>
+    <li>Toggling a mod on adds it to your active profile and recomposes the overlay. <b>Conflicts</b> between
+    enabled mods are detected — the later mod wins.</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="win" id="profiles">
+      <header><span class="dots"><i></i><i></i><i></i></span><span class="wt">profiles — zsh</span></header>
+      <div class="body">
+        <p class="cmd"><span class="u">you</span><span class="at">@pigmentlab</span><span class="d">:~$</span> man pigment-profiles</p>
+        <h2>Profiles</h2>
+        <div class="prose">
+          <p>A profile is a named bundle of settings, FastFlags and enabled mods — think <span class="kbd">main</span>,
+  <span class="kbd">alt</span>, <span class="kbd">testing</span>. Profiles are applied one at a time.</p>
+          <ul><li><b>Save current setup as profile</b> snapshots your current config into a new profile.</li>
+    <li><b>Make active</b> (★) sets which profile is applied automatically when you launch.</li>
+    <li><b>Apply now</b> (▶) writes a profile onto Sober immediately.</li></ul>
+          <p>Simultaneous multiple instances are intentionally not supported — that’s the behavior Roblox
+  treats as abuse. Profiles are the sequential alternative.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="win" id="activity-discord">
+      <header><span class="dots"><i></i><i></i><i></i></span><span class="wt">activity & discord — zsh</span></header>
+      <div class="body">
+        <p class="cmd"><span class="u">you</span><span class="at">@pigmentlab</span><span class="d">:~$</span> man pigment-activity</p>
+        <h2>Activity & Discord</h2>
+        <div class="prose">
+          <p>The Activity page lists your recent games, parsed from Sober’s logs, with names resolved live from Roblox’s
+  API and each session’s time and duration.</p>
+          <h3 id="discord-rich-presence">Discord Rich Presence</h3>
+          <p>Toggle <b>Share your game on Discord</b> to show what you’re playing, with elapsed time. It requires Discord
+  to be running. Sober also ships its own Discord presence — enable one or the other to avoid duplicates.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="win" id="default-launcher">
+      <header><span class="dots"><i></i><i></i><i></i></span><span class="wt">default launcher — zsh</span></header>
+      <div class="body">
+        <p class="cmd"><span class="u">you</span><span class="at">@pigmentlab</span><span class="d">:~$</span> man pigment-launcher</p>
+        <h2>Default launcher</h2>
+        <div class="prose">
+          <p>On the Home page, <b>Make Pigment the default launcher</b> registers Pigment as the system
+  <code class="inl">roblox://</code> handler. Then, when you press Play on the Roblox website, Pigment applies your
+  active profile and hands the link to Sober.</p>
+          <ul><li>It’s <b>opt-in</b> — Pigment never changes your handler on its own.</li>
+    <li>It’s <b>fully reversible</b> — turn the switch off to hand the handler back to Sober.</li>
+    <li>If anything fails, Pigment still launches Sober directly, so you’re never stranded.</li></ul>
+          <p>On KDE, Pigment refreshes the desktop/service caches so the change takes effect immediately.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="win" id="file-locations">
+      <header><span class="dots"><i></i><i></i><i></i></span><span class="wt">file locations — zsh</span></header>
+      <div class="body">
+        <p class="cmd"><span class="u">you</span><span class="at">@pigmentlab</span><span class="d">:~$</span> tree ~/.var/app/org.vinegarhq.Sober</p>
+        <h2>File locations</h2>
+        <div class="prose">
+          <ul><li>Sober config: <code class="inl">~/.var/app/org.vinegarhq.Sober/config/sober/config.json</code></li>
+    <li>Mod overlay: <code class="inl">~/.var/app/org.vinegarhq.Sober/data/sober/asset_overlay/</code></li>
+    <li>Sober logs: <code class="inl">~/.var/app/org.vinegarhq.Sober/data/sober/sober_logs/</code></li>
+    <li>Pigment profiles &amp; mod library: <code class="inl">~/.config/pigment/</code></li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="win" id="troubleshooting">
+      <header><span class="dots"><i></i><i></i><i></i></span><span class="wt">troubleshooting — zsh</span></header>
+      <div class="body">
+        <p class="cmd"><span class="u">you</span><span class="at">@pigmentlab</span><span class="d">:~$</span> pigmentlab --doctor</p>
+        <h2>Troubleshooting</h2>
+        <div class="prose">
+          <h3 id="sober-is-not-installed">“Sober is not installed”</h3>
+          <p>Install the Flatpak: <code class="inl">flatpak install flathub org.vinegarhq.Sober</code>, then relaunch Pigment.</p>
+          <h3 id="settings-fastflags-say-there-s-no-config">Settings/FastFlags say there’s no config</h3>
+          <p>Launch Roblox through Sober once so it creates <code class="inl">config.json</code>, then reopen the page.</p>
+          <h3 id="the-default-launcher-switch-doesn-t-stick">The default-launcher switch doesn’t stick</h3>
+          <p>Pigment refreshes the desktop and (on KDE) the service cache automatically. If a link still opens the wrong
+  app, toggle the switch off and on again.</p>
+          <h3 id="discord-presence-won-t-connect">Discord presence won’t connect</h3>
+          <p>Make sure the Discord desktop app is running before enabling the toggle. Flatpak/Snap Discord is supported.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="win" id="faq">
+      <header><span class="dots"><i></i><i></i><i></i></span><span class="wt">faq — zsh</span></header>
+      <div class="body">
+        <p class="cmd"><span class="u">you</span><span class="at">@pigmentlab</span><span class="d">:~$</span> cat FAQ.md</p>
+        <h2>FAQ</h2>
+        <div class="prose">
+          <h3 id="will-this-get-me-banned">Will this get me banned?</h3>
+          <p>Pigment only uses Sober’s documented, sanctioned mechanisms — config keys, the asset overlay, and
+  whitelisted FastFlags. It doesn’t patch the client or defeat anti-cheat. Sober itself is unofficial, so play
+  at your own risk, but Pigment adds nothing that Sober doesn’t already permit.</p>
+          <h3 id="can-i-run-two-accounts-at-once">Can I run two accounts at once?</h3>
+          <p>No — simultaneous instances are deliberately unsupported. Use profiles to switch between accounts/setups.</p>
+          <h3 id="do-my-windows-bloxstrap-mods-work">Do my Windows Bloxstrap mods work?</h3>
+          <p>FastFlag presets do (identical format). Asset mods often need adjusting, because Sober uses Android asset
+  paths — Pigment flags files that don’t match the real APK.</p>
+          <h3 id="is-it-safe-to-let-pigment-edit-sober-s-config">Is it safe to let Pigment edit Sober’s config?</h3>
+          <p>Yes. Writes are atomic, validated before saving, back up the previous file, and preserve comments and
+  unknown keys.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="win" id="feedback-bug-reports">
+      <header><span class="dots"><i></i><i></i><i></i></span><span class="wt">feedback & bug reports — zsh</span></header>
+      <div class="body">
+        <p class="cmd"><span class="u">you</span><span class="at">@pigmentlab</span><span class="d">:~$</span> gh issue create</p>
+        <h2>Feedback & bug reports</h2>
+        <div class="prose">
+          <p>Found a bug or have an idea? <a href="https://github.com/SpeeNotPee/Pigment/issues/new/choose">Open an issue on GitHub</a> — there are templates
+  for <b>bug reports</b> and <b>feature requests</b>. Inside the app you can also use
+  <span class="kbd">Menu ‣ Report a Bug</span>, or <span class="kbd">Menu ‣ About Pigment ‣ Report an Issue</span>.</p>
+          <p>When reporting a bug, please include your Pigment version (<span class="kbd">Menu ‣ About Pigment</span>),
+  your Sober version, and your distro and desktop.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="win" id="terms-of-use">
+      <header><span class="dots"><i></i><i></i><i></i></span><span class="wt">terms of use — zsh</span></header>
+      <div class="body">
+        <p class="cmd"><span class="u">you</span><span class="at">@pigmentlab</span><span class="d">:~$</span> cat TERMS.md</p>
+        <h2>Terms of use</h2>
+        <div class="prose">
+          <p>Pigment is free, unofficial, community software provided <b>“as is”</b>, without warranty of any kind.
+  It is <b>not affiliated with</b>, endorsed by, or sponsored by Roblox Corporation or VinegarHQ; all
+  trademarks belong to their respective owners.</p>
+          <p>Using unofficial clients is at your own risk. You are responsible for complying with Roblox’s Terms of
+  Use and Community Standards, including any risk to your account. Pigment uses only Sober’s documented,
+  sanctioned mechanisms and does not modify the Roblox client or bypass its anti-cheat.</p>
+          <p>Read the full <a href="https://github.com/SpeeNotPee/Pigment/blob/main/TERMS.md">Terms of Use</a>.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="win" id="privacy">
+      <header><span class="dots"><i></i><i></i><i></i></span><span class="wt">privacy — zsh</span></header>
+      <div class="body">
+        <p class="cmd"><span class="u">you</span><span class="at">@pigmentlab</span><span class="d">:~$</span> cat PRIVACY.md</p>
+        <h2>Privacy</h2>
+        <div class="prose">
+          <p>Pigment is a local desktop app with <b>no servers, accounts, analytics, or telemetry</b> — the
+  developers receive none of your data. It makes network requests only for two things:</p>
+          <ul><li>resolving game names from Roblox’s public API (it sends a public universe id, never personal data); and</li>
+    <li>optional Discord Rich Presence, which talks to your <b>local</b> Discord client only.</li></ul>
+          <p>Your configuration, FastFlags, mods, and logs never leave your machine. Read the full
+  <a href="https://github.com/SpeeNotPee/Pigment/blob/main/PRIVACY.md">Privacy Notice</a>.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <span class="cur">▌</span> unofficial · not affiliated with, endorsed by, or sponsored by
+  <a href="https://corp.roblox.com/">Roblox Corporation</a> or
+  <a href="https://vinegarhq.org/">VinegarHQ</a>
+</footer>
+
+<script>
+document.querySelectorAll(".copy").forEach(function (b) {
+  b.addEventListener("click", function () {
+    navigator.clipboard.writeText(b.dataset.copy).then(function () {
+      var old = b.textContent;
+      b.textContent = "copied"; b.dataset.done = "true";
+      setTimeout(function () { b.textContent = old; b.dataset.done = "false"; }, 1400);
+    });
+  });
+});
+
+// Highlight the contents entry for whichever section you're reading.
+(function () {
+  var links = {};
+  document.querySelectorAll(".toc a").forEach(function (a) {
+    links[a.getAttribute("href").slice(1)] = a;
+  });
+  var current = null;
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) { e.target._r = e.isIntersecting ? e.intersectionRatio : 0; });
+    var best = null, bestR = 0;
+    document.querySelectorAll("section.win[id]").forEach(function (s) {
+      if ((s._r || 0) > bestR) { bestR = s._r; best = s; }
+    });
+    if (!best || best.id === current) return;
+    if (current && links[current]) links[current].removeAttribute("aria-current");
+    current = best.id;
+    if (links[current]) links[current].setAttribute("aria-current", "true");
+  }, { threshold: [0, .1, .5, 1], rootMargin: "-54px 0px -55% 0px" });
+  document.querySelectorAll("section.win[id]").forEach(function (s) { io.observe(s); });
+})();
+</script>

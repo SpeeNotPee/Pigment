@@ -1,0 +1,300 @@
+<title>Pigment — Roblox on Linux, done right</title>
+<meta name="description" content="Pigment is a Bloxstrap-class launcher and manager for Roblox on Linux, built on the Sober runtime. Settings, profiles, FastFlags and mods — without editing JSON.">
+<link rel="canonical" href="https://pigmentlab.net/">
+
+<style>
+__THEME__
+
+/* ---- Landing page ------------------------------------------------------ */
+.desk { width: min(100% - 28px, 1180px); margin-inline: auto; padding: 68px 0 28px; }
+.wide { margin-top: var(--gap); }
+.grid { display: grid; grid-template-columns: 1.85fr 1fr; gap: var(--gap); align-items: start; }
+.col { display: grid; gap: var(--gap); min-width: 0; }
+@media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+/* ---- neofetch-style identity ------------------------------------------- */
+.fetch { display: grid; grid-template-columns: auto 1fr; gap: 1.4rem; align-items: start; }
+.fetch > img { width: 112px; height: 112px; border-radius: 8px; display: block; }
+h1 { font-size: clamp(1.35rem, 2.9vw, 2.05rem); line-height: 1.15; margin: 0;
+  letter-spacing: -.03em; font-weight: 700; text-wrap: balance; }
+h1 .hl { color: var(--violet); }
+.tagline { color: var(--muted); margin: .35rem 0 0; }
+.tagline b { color: var(--magenta); font-weight: 700; }
+.rule { height: 1px; background: var(--edge); margin: .9rem 0; }
+.kv { display: grid; grid-template-columns: 7.5rem 1fr; gap: .1rem .8rem; margin: 0; }
+.kv dt { color: var(--violet); font-weight: 700; }
+.kv dd { margin: 0; color: var(--muted); }
+.kv dd b { color: var(--text); font-weight: 400; }
+.swatch { display: flex; gap: 4px; margin-top: 1rem; }
+.swatch i { width: 26px; height: 12px; border-radius: 2px; display: block; }
+@media (max-width: 620px) {
+  .fetch { grid-template-columns: 1fr; }
+  .fetch > img { width: 76px; height: 76px; }
+  .kv { grid-template-columns: 1fr; gap: 0 0; }
+  .kv dd { margin-bottom: .5rem; }
+}
+
+/* ---- Numbered facts ---------------------------------------------------- */
+.facts { list-style: none; margin: 0; padding: 0; display: grid; gap: .95rem; }
+.facts li { display: grid; grid-template-columns: 2.2rem 1fr; gap: .6rem; }
+.facts .n { color: var(--violet); font-weight: 700; font-variant-numeric: tabular-nums; }
+.facts h3 { margin: 0; font-size: 14px; font-weight: 700; color: var(--text); }
+.facts p { margin: 0; color: var(--muted); }
+
+/* ---- Nested entries (features) ----------------------------------------- */
+.entry { border: 1px solid var(--edge); border-radius: 8px; padding: .8rem .85rem;
+  background: rgb(255 255 255 / .015); }
+/* Two-up on wide screens: six stacked entries made the left column run ~700px
+   past the right one and left a dead gap. */
+.entries { display: grid; gap: .6rem; grid-template-columns: 1fr 1fr; }
+@media (max-width: 760px) { .entries { grid-template-columns: 1fr; } }
+.entry h3 { margin: 0 0 .25rem; font-size: 14px; font-weight: 700; }
+.entry h3 .path { color: var(--violet); }
+.entry p { margin: 0; color: var(--muted); }
+.chips { display: flex; gap: .35rem; flex-wrap: wrap; margin-top: .6rem; }
+.chip { font-size: 11.5px; color: var(--dim); border: 1px solid var(--edge-2);
+  border-radius: 999px; padding: .05rem .5rem; }
+
+/* ---- Install paths ----------------------------------------------------- */
+.paths { display: grid; gap: .85rem; }
+.path h3 { margin: 0 0 .1rem; font-size: 14px; font-weight: 700; }
+.path .who { margin: 0; color: var(--muted); }
+.path .run { margin-top: .5rem; }
+.stat { font-size: 11.5px; border: 1px solid var(--edge-2); border-radius: 999px;
+  padding: .05rem .5rem; color: var(--dim); margin-left: .4rem; }
+.stat.review { color: var(--amber); border-color: rgb(242 180 106 / .45); }
+
+</style>
+
+<a class="skip" href="#about">Skip to content</a>
+
+<div class="wm">
+  <span class="tag">▸ pigment</span>
+  <span class="ws">~/pigmentlab &nbsp;·&nbsp; <b>v0.2.0</b></span>
+  <nav aria-label="Main">
+    <a href="#why">why</a>
+    <a href="#features">features</a>
+    <a href="#install" class="keep">install</a>
+    <a href="guide.html">docs</a>
+    <a href="https://github.com/SpeeNotPee/Pigment" class="keep">github</a>
+  </nav>
+  <a class="go" href="#install">install</a>
+</div>
+
+<main class="desk">
+<div class="grid">
+
+  <!-- Left column -->
+  <div class="col">
+
+    <section class="win" id="about">
+      <header><span class="dots"><i></i><i></i><i></i></span><span class="wt">pigment — zsh</span></header>
+      <div class="body">
+        <p class="cmd"><span class="u">you</span><span class="at">@pigmentlab</span><span class="d">:~$</span> ./pigmentlab --about</p>
+        <div class="fetch">
+          <img src="__ICON__" alt="">
+          <div>
+            <h1>Roblox on Linux, <span class="hl">done right.</span></h1>
+            <p class="tagline">The <b>Bloxstrap-class</b> launcher for Sober.</p>
+            <div class="rule"></div>
+            <dl class="kv">
+              <dt>Runtime</dt><dd><b>Sober</b> — the Android Roblox client, natively</dd>
+              <dt>Manages</dt><dd>settings · profiles · FastFlags · mods · activity</dd>
+              <dt>Built with</dt><dd>Rust · GTK4 · libadwaita</dd>
+              <dt>Version</dt><dd><b>0.2.0</b> — MIT licensed</dd>
+              <dt>Needs</dt><dd>GTK <b>4.12+</b> · libadwaita <b>1.4+</b> · Rust <b>1.96+</b></dd>
+            </dl>
+            <div class="swatch" aria-hidden="true">
+              <i style="background:#7c3aed"></i><i style="background:#a884f7"></i>
+              <i style="background:#c026a6"></i><i style="background:#e072bd"></i>
+              <i style="background:#4ade80"></i><i style="background:#f2b46a"></i>
+              <i style="background:#6cb6ff"></i><i style="background:#9d95b4"></i>
+            </div>
+            <div class="run">
+              <span class="p">$</span><code>yay -S pigment-launcher</code>
+              <button class="copy" data-copy="yay -S pigment-launcher">copy</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="win" id="why">
+      <header><span class="dots"><i></i><i></i><i></i></span><span class="wt">why — zsh</span></header>
+      <div class="body">
+        <p class="cmd"><span class="u">you</span><span class="at">@pigmentlab</span><span class="d">:~$</span> cat ./why-sober.md</p>
+        <p class="hash"># three facts, in order — the whole reason Pigment exists</p>
+        <ol class="facts">
+          <li><span class="n">01</span>
+            <div><h3>Wine is blocked</h3>
+              <p>Roblox's Hyperion anti-cheat rejects the Windows client under Wine.
+                 The way that used to work doesn't anymore.</p></div></li>
+          <li><span class="n">02</span>
+            <div><h3>Sober runs the Android client</h3>
+              <p>VinegarHQ's Sober runs Roblox's Android build natively on your desktop.
+                 It's the one path that still works — and it works well.</p></div></li>
+          <li><span class="n">03</span>
+            <div><h3>Sober has no front end</h3>
+              <p>Every setting is a key in a JSON file you edit by hand. FastFlags, mods
+                 and profiles are yours to manage in a text editor. That's the gap.</p></div></li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="win" id="features">
+      <header><span class="dots"><i></i><i></i><i></i></span><span class="wt">features — zsh</span></header>
+      <div class="body">
+        <p class="cmd"><span class="u">you</span><span class="at">@pigmentlab</span><span class="d">:~$</span> ls ~/pigment/features</p>
+        <p class="hash"># 6 entries — everything Sober keeps in JSON</p>
+        <div class="entries">
+          <div class="entry">
+            <h3><span class="path">./</span>fastflags</h3>
+            <p>Bloxstrap's exact JSON format, so the flag lists people already share paste
+               straight in. Invalid JSON is caught before it ever reaches Sober.</p>
+            <div class="chips"><span class="chip">validated</span><span class="chip">bloxstrap-compatible</span></div>
+          </div>
+          <div class="entry">
+            <h3><span class="path">./</span>settings</h3>
+            <p>A real, typed control for every key in Sober's config — not a text field
+               and a prayer.</p>
+            <div class="chips"><span class="chip">every key</span></div>
+          </div>
+          <div class="entry">
+            <h3><span class="path">./</span>profiles</h3>
+            <p>Main, alt, testing. Named setups applied one at a time, automatically on launch.</p>
+            <div class="chips"><span class="chip">auto-apply</span></div>
+          </div>
+          <div class="entry">
+            <h3><span class="path">./</span>mods</h3>
+            <p>File overlays through Sober's sanctioned asset overlay, validated against the
+               real Roblox asset tree so a typo can't silently do nothing.</p>
+            <div class="chips"><span class="chip">apk-validated</span></div>
+          </div>
+          <div class="entry">
+            <h3><span class="path">./</span>launcher</h3>
+            <p>Opt-in, reversible takeover of <code>roblox://</code> links, so clicking Play
+               applies your profile before Sober starts.</p>
+            <div class="chips"><span class="chip">opt-in</span><span class="chip">reversible</span></div>
+          </div>
+          <div class="entry">
+            <h3><span class="path">./</span>activity</h3>
+            <p>What you played, resolved from Sober's logs — plus Discord Rich Presence
+               if you want it.</p>
+            <div class="chips"><span class="chip">discord-rpc</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Right column -->
+  <div class="col">
+
+    <section class="win">
+      <header><span class="dots"><i></i><i></i><i></i></span><span class="wt">status — zsh</span></header>
+      <div class="body">
+        <p class="cmd"><span class="u">you</span><span class="at">@pigmentlab</span><span class="d">:~$</span> pigmentlab --status</p>
+        <div class="rows">
+          <p class="row"><span class="l">Sober runtime</span><span class="m">1.7.1</span><span class="ok">✓</span></p>
+          <p class="row"><span class="l">Configuration</span><span class="m">present</span><span class="ok">✓</span></p>
+          <p class="row"><span class="l">Handler</span><span class="m">pigment</span><span class="ok">✓</span></p>
+          <p class="row"><span class="l">Profile</span><span class="m">main</span><span class="ok">✓</span></p>
+        </div>
+        <p class="note"># what Pigment's Home page shows, live</p>
+      </div>
+    </section>
+
+    <section class="win">
+      <header><span class="dots"><i></i><i></i><i></i></span><span class="wt">distros — zsh</span></header>
+      <div class="body">
+        <p class="cmd"><span class="u">you</span><span class="at">@pigmentlab</span><span class="d">:~$</span> pigment --check-distro</p>
+        <div class="rows">
+          <p class="row"><span class="l">Arch · CachyOS</span><span class="m">aur</span><span class="ok">✓</span></p>
+          <p class="row"><span class="l">EndeavourOS</span><span class="m">aur</span><span class="ok">✓</span></p>
+          <p class="row"><span class="l">Manjaro</span><span class="m">aur</span><span class="ok">✓</span></p>
+          <p class="row"><span class="l">Steam Deck</span><span class="m">flatpak</span><span class="ok">✓</span></p>
+          <p class="row"><span class="l">Ubuntu 24.04+</span><span class="m">flatpak</span><span class="ok">✓</span></p>
+          <p class="row"><span class="l">Mint 22 · Pop</span><span class="m">flatpak</span><span class="ok">✓</span></p>
+          <p class="row"><span class="l">Ubuntu 22.04</span><span class="m">—</span><span class="no">✗</span></p>
+          <p class="row"><span class="l">Debian 12</span><span class="m">—</span><span class="no">✗</span></p>
+        </div>
+        <p class="note"># ✗ ships libadwaita &lt; 1.4 — below the floor</p>
+      </div>
+    </section>
+
+    <section class="win">
+      <header><span class="dots"><i></i><i></i><i></i></span><span class="wt">links — zsh</span></header>
+      <div class="body">
+        <p class="cmd"><span class="u">you</span><span class="at">@pigmentlab</span><span class="d">:~$</span> cat links.txt</p>
+        <div class="links">
+          <a href="https://github.com/SpeeNotPee/Pigment"><span class="l">GitHub</span><span class="v">@SpeeNotPee/Pigment</span></a>
+          <a href="https://aur.archlinux.org/packages/pigment-launcher"><span class="l">AUR</span><span class="v">pigment-launcher</span></a>
+          <a href="guide.html"><span class="l">Docs</span><span class="v">the full guide</span></a>
+          <a href="https://github.com/SpeeNotPee/Pigment/releases"><span class="l">Releases</span><span class="v">v0.2.0</span></a>
+        </div>
+      </div>
+    </section>
+
+    <section class="win">
+      <header><span class="dots"><i></i><i></i><i></i></span><span class="wt">sober — zsh</span></header>
+      <div class="body">
+        <p class="cmd"><span class="u">you</span><span class="at">@pigmentlab</span><span class="d">:~$</span> flatpak info org.vinegarhq.Sober</p>
+        <p class="note" style="margin-top:0">
+          Pigment doesn't reimplement the runtime. It drives Sober as-is, reading and
+          writing the same config Sober already uses — so you can stop using Pigment
+          at any time and nothing breaks.
+        </p>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="wide">
+    <section class="win" id="install">
+      <header><span class="dots"><i></i><i></i><i></i></span><span class="wt">install — zsh</span></header>
+      <div class="body">
+        <p class="cmd"><span class="u">you</span><span class="at">@pigmentlab</span><span class="d">:~$</span> pigment --install --help</p>
+        <div class="paths">
+          <div class="path">
+            <h3>arch<span class="stat">arch · cachyos · endeavouros</span></h3>
+            <p class="who">The versioned package. <code>pigment-launcher-git</code> tracks main
+               if you'd rather live on the edge.</p>
+            <div class="run"><span class="p">$</span><code>yay -S pigment-launcher</code>
+              <button class="copy" data-copy="yay -S pigment-launcher">copy</button></div>
+          </div>
+          <div class="path">
+            <h3>flatpak<span class="stat review">submission in review</span></h3>
+            <p class="who">The right answer for Steam Deck, Ubuntu, Mint and Pop!_OS.
+               Not on Flathub yet — build it from the manifest in the meantime.</p>
+            <div class="run"><span class="p">$</span><code>flatpak run org.flatpak.Builder …</code></div>
+          </div>
+          <div class="path">
+            <h3>source<span class="stat">any distro</span></h3>
+            <p class="who">Builds the GUI and the protocol handler, installs to
+               <code>~/.local</code> with no root.</p>
+            <div class="run"><span class="p">$</span><code>make install PREFIX=$HOME/.local</code>
+              <button class="copy" data-copy="make install PREFIX=$HOME/.local">copy</button></div>
+          </div>
+        </div>
+      </div>
+    </section>
+</div>
+</main>
+
+<footer>
+  <span class="cur">▌</span> unofficial · not affiliated with, endorsed by, or sponsored by
+  <a href="https://corp.roblox.com/">Roblox Corporation</a> or
+  <a href="https://vinegarhq.org/">VinegarHQ</a>
+</footer>
+
+<script>
+document.querySelectorAll(".copy").forEach(function (b) {
+  b.addEventListener("click", function () {
+    navigator.clipboard.writeText(b.dataset.copy).then(function () {
+      var old = b.textContent;
+      b.textContent = "copied"; b.dataset.done = "true";
+      setTimeout(function () { b.textContent = old; b.dataset.done = "false"; }, 1400);
+    });
+  });
+});
+</script>
