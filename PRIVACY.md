@@ -1,14 +1,14 @@
 # Privacy Notice
 
-_Last updated: 13 July 2026_
+_Last updated: 26 July 2026_
 
 Pigment is a local desktop application. It has **no servers, no accounts, and no
-analytics or telemetry**. The developers do not collect, receive, or store any of
+analytics or telemetry**. Pigment does not collect, receive, or store any of
 your data.
 
 ## What stays on your device
 
-- Pigment reads and writes Sober's configuration, its asset overlay, and its logs
+- Pigment reads and writes Sober configuration, its asset overlay, and its logs
   on your machine.
 - Pigment stores your profiles and mod library under `~/.config/pigment/`.
 
@@ -23,7 +23,7 @@ described:
   This is best-effort; if you are offline, place IDs are shown instead.
 - **Discord Rich Presence (optional, off by default).** If you enable it, Pigment
   connects to your **local** Discord client over its IPC socket and sends the
-  current game name and status. Discord — not Pigment — then shares that according
+  current game name and status. Discord then shares that according
   to your Discord settings. Pigment makes no other connection to Discord.
 
 Pigment does not "phone home", and it does not transmit your configuration,
@@ -40,4 +40,4 @@ Questions: open an issue at <https://github.com/SpeeNotPee/Pigment/issues>.
 
 ---
 
-_This notice is provided for transparency and is not legal advice._
+_I'm not a fucking lawyer but I'll just put here incase you motherfuckers decide to sue or some shit._
