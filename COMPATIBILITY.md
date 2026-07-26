@@ -24,60 +24,28 @@ The AUR packages (`pigment-launcher`, `pigment-launcher-git`) work here.
 
 | Distro | Status | Notes |
 |---|---|---|
-| **Arch Linux** | ✅ Works | Reference platform. |
-| **CachyOS** | ✅ Works | Ships the Arch libraries; AUR support is built into Pamac. |
-| **EndeavourOS** | ✅ Works | Uses the Arch repositories; install an AUR helper (e.g. `yay`) as usual. |
-| **Manjaro** | ✅ Works | AUR is opt-in in Pamac. **Run a full update first** (`sudo pacman -Syu`) — a stale snapshot can carry a libadwaita below the 1.4 floor and fail the build. |
-| **SteamOS / Steam Deck** | ⚠️ Not via AUR | The read-only, A/B system image disables `pacman` and wipes system-level installs on OS updates. Use a Flatpak instead (planned — see below). |
+| **Arch Linux** | Works | Reference platform. |
+| **CachyOS** | Works | Ships the Arch libraries; AUR support is built into Pamac. |
+| **EndeavourOS** | Works | Uses the Arch repositories; install an AUR helper (e.g. `yay`) as usual. |
+| **Manjaro** | Works | AUR is opt-in in Pamac. **Run a full update first** (`sudo pacman -Syu`) — a stale snapshot can carry a libadwaita below the 1.4 floor and fail the build. |
+| **SteamOS / Steam Deck** | Not via AUR | The read-only, A/B system image disables `pacman` and wipes system-level installs on OS updates. Use a Flatpak instead (planned — see below). |
 
 ## Debian-based
 
-There is **no `.deb`** yet, and the AUR packages do not apply here — so today
+There is **no `.deb`** yet, and the AUR packages do not apply here so as of right now,
 this means building from source. Only releases new enough to meet the
 libadwaita 1.4 floor can run it:
 
 | Distro / release | libadwaita | Status |
 |---|---|---|
-| **Ubuntu 24.04 LTS** and newer | 1.5+ | ✅ Works |
-| **Ubuntu 22.04 LTS** | 1.1 | ❌ Too old |
-| **Debian 13 (Trixie)** and newer | 1.7+ | ✅ Works |
-| **Debian 12 (Bookworm)** | 1.2 | ❌ Too old |
-| **Linux Mint 22** (Ubuntu 24.04 base) | 1.5 | ✅ Works |
-| **Linux Mint 21.x** (Ubuntu 22.04 base) | 1.1 | ❌ Too old |
-| **Pop!_OS (COSMIC / 24.04 base)** | 1.5 | ✅ Works |
-| **Pop!_OS 22.04** | 1.1 | ❌ Too old |
+| **Ubuntu 24.04 LTS** and newer | 1.5+ | Works |
+| **Ubuntu 22.04 LTS** | 1.1 | Too old |
+| **Debian 13 (Trixie)** and newer | 1.7+ | Works |
+| **Debian 12 (Bookworm)** | 1.2 | Too old |
+| **Linux Mint 22** (Ubuntu 24.04 base) | 1.5 | Works |
+| **Linux Mint 21.x** (Ubuntu 22.04 base) | 1.1 | Too old |
+| **Pop!_OS (COSMIC / 24.04 base)** | 1.5 | Works |
+| **Pop!_OS 22.04** | 1.1 | Too old |
 
 **Rule of thumb:** anything on an **Ubuntu 24.04 base or newer**, or **Debian 13
 or newer**, works. The 22.04 / Debian 12 generation does not.
-
-## Flatpak (cross-distro)
-
-A Flatpak bundles its own GNOME runtime, so the host's GTK/libadwaita versions
-**stop mattering** — Pigment then runs on every distro above, including the
-"too old" rows (Ubuntu 22.04, Debian 12, Mint 21, Pop!_OS 22.04) and the Steam
-Deck, with no Rust toolchain needed to install.
-
-The manifest lives at [`packaging/flatpak/net.pigmentlab.Pigment.yaml`](packaging/flatpak/net.pigmentlab.Pigment.yaml).
-Build and install it from a checkout:
-
-```sh
-flatpak install flathub org.flatpak.Builder   # one-time
-flatpak run org.flatpak.Builder --user --install --force-clean \
-  build-dir packaging/flatpak/net.pigmentlab.Pigment.yaml
-flatpak run net.pigmentlab.Pigment
-```
-
-Because Pigment is sandboxed but drives Sober (another Flatpak) on the host, the
-manifest grants `--talk-name=org.freedesktop.Flatpak` (to launch Sober and query
-its version via `flatpak-spawn --host`) and `--filesystem=~/.var/app/org.vinegarhq.Sober`
-(to read/write its config, mods, and logs). The code detects the sandbox and
-routes host commands accordingly.
-
-> Not yet on Flathub. The manifest builds from the local checkout; a Flathub
-> submission would pin a released source tarball instead.
-
----
-
-*Versions verified July 2026. If your distribution isn't listed, check its GTK 4
-and libadwaita versions against the floors above:*
-`pkg-config --modversion gtk4 libadwaita-1`
