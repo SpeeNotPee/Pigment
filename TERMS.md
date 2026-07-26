@@ -1,6 +1,6 @@
 # Terms of Use
 
-_Last updated: 13 July 2026_
+_Last updated: 26 July 2026_
 
 Pigment ("the Software") is free, open-source, community-maintained software
 distributed under the [MIT License](LICENSE). By downloading, installing, or
@@ -70,4 +70,4 @@ Questions or reports: open an issue at
 
 ---
 
-_This document is provided for transparency and is not legal advice._
+_Lowk asked Gemini to generate this shit for me cause again, I'm not a fucking lawyer and I dont want no legal troubles._
