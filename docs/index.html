@@ -204,6 +204,31 @@ h1 .hl { color: var(--violet); }
 .chip { font-size: 11.5px; color: var(--dim); border: 1px solid var(--edge-2);
   border-radius: 999px; padding: .05rem .5rem; }
 
+/* ---- Demo video --------------------------------------------------------
+   Nothing loads from YouTube until the play button is pressed — the facade is
+   drawn locally, so the page still makes zero third-party requests at rest. */
+.demo { width: min(100%, 900px); margin-inline: auto; position: relative;
+  aspect-ratio: 16 / 9; border: 1px solid var(--edge); border-radius: 8px;
+  overflow: hidden; background: var(--sunk); }
+.demo iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.demo .facade {
+  position: absolute; inset: 0; display: grid; place-content: center; gap: .35rem;
+  justify-items: center; cursor: pointer; text-align: center; padding: 1rem;
+  font-family: var(--mono); color: var(--text); border: 0;
+  background: radial-gradient(ellipse at 50% 45%, rgb(124 58 237 / .22), transparent 68%),
+              linear-gradient(180deg, rgb(30 25 44 / .55), rgb(8 7 13 / .75));
+}
+.demo .facade:hover .tri { border-left-color: var(--magenta); transform: scale(1.06); }
+.tri { width: 0; height: 0; border-style: solid; border-width: 15px 0 15px 25px;
+  border-color: transparent transparent transparent var(--violet);
+  margin-bottom: .55rem; transition: transform .15s ease, border-left-color .15s ease; }
+@media (prefers-reduced-motion: reduce) { .tri { transition: none; } }
+.demo .t { font-weight: 700; }
+.demo .s { color: var(--dim); font-size: 12.5px; }
+.demo-note { margin: .9rem 0 0; color: var(--dim); font-size: 12.5px; text-align: center; }
+.demo-note a { color: var(--blue); text-decoration: none; }
+.demo-note a:hover { text-decoration: underline; }
+
 /* ---- Install paths ----------------------------------------------------- */
 .paths { display: grid; gap: .85rem; }
 .path h3 { margin: 0 0 .1rem; font-size: 14px; font-weight: 700; }
@@ -223,6 +248,7 @@ h1 .hl { color: var(--violet); }
   <nav aria-label="Main">
     <a href="#why">why</a>
     <a href="#features">features</a>
+    <a href="#demo">demo</a>
     <a href="#install" class="keep">install</a>
     <a href="guide.html">docs</a>
     <a href="https://github.com/SpeeNotPee/Pigment" class="keep">github</a>
@@ -400,6 +426,26 @@ h1 .hl { color: var(--violet); }
 </div>
 
 <div class="wide">
+    <section class="win" id="demo">
+      <header><span class="dots"><i></i><i></i><i></i></span><span class="wt">demo — mpv</span></header>
+      <div class="body">
+        <p class="cmd"><span class="u">you</span><span class="at">@pigmentlab</span><span class="d">:~$</span> mpv ./pigment-showcase.mkv</p>
+        <p class="hash"># the whole app, end to end — install, profiles, FastFlags, mods</p>
+        <div class="demo" id="demo-frame">
+          <button class="facade" type="button" id="demo-play"
+                  aria-label="Play the Pigment showcase video (loads YouTube)">
+            <span class="tri" aria-hidden="true"></span>
+            <span class="t">Bloxstrap for Linux | Pigment Showcase</span>
+            <span class="s">youtube · nothing loads until you press play</span>
+          </button>
+        </div>
+        <p class="demo-note">Prefer YouTube proper?
+          <a href="https://youtu.be/f0jYXzVATeI">Watch it there</a>.</p>
+      </div>
+    </section>
+</div>
+
+<div class="wide">
     <section class="win" id="install">
       <header><span class="dots"><i></i><i></i><i></i></span><span class="wt">install — zsh</span></header>
       <div class="body">
@@ -446,5 +492,17 @@ document.querySelectorAll(".copy").forEach(function (b) {
       setTimeout(function () { b.textContent = old; b.dataset.done = "false"; }, 1400);
     });
   });
+});
+
+// The demo stays a local drawing until it's asked for; only then does the
+// YouTube player exist at all.
+document.getElementById("demo-play").addEventListener("click", function () {
+  var f = document.createElement("iframe");
+  f.src = "https://www.youtube-nocookie.com/embed/f0jYXzVATeI?autoplay=1&rel=0";
+  f.title = "Bloxstrap for Linux | Pigment Showcase";
+  f.allow = "accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture";
+  f.referrerPolicy = "strict-origin-when-cross-origin";
+  f.allowFullscreen = true;
+  document.getElementById("demo-frame").replaceChildren(f);
 });
 </script>
