@@ -4,18 +4,17 @@
 **[Documentation](https://pigmentlab.net/guide.html)** ·
 **[Report a bug](https://github.com/SpeeNotPee/Pigment/issues/new/choose)**
 
-A Roblox launcher and manager for Linux — a Bloxstrap-class front end for
+A Roblox launcher and manager for Linux, a Bloxstrap front end for
 [Sober](https://sober.vinegarhq.org/), the runtime that actually runs Roblox on
 Linux.
 
-Roblox Player can't run under Wine (Hyperion anti-cheat blocks it), so Sober —
-which runs the Android client — is the only working path. Sober works well but
-its entire configuration is a hand-edited JSON file. Pigment gives you a real
+Roblox Player can't run under Wine (Hyperion anti-cheat blocks it), so Sober is the only working method. Sober works well but
+its entire configuration is a hand edited JSON file. Pigment gives you a real
 GUI on top of it: settings, profiles, FastFlags, mods, and one-click launching.
 
-Pigment does **not** reimplement the runtime. It drives Sober as-is: reading and
+Pigment does **not** reimplement the runtime. It drives Sober as it is: reading and
 safely rewriting its config, composing mods into its overlay, launching it, and
-(opt-in) becoming the `roblox://` handler so it can apply your profile first.
+(opt in) becoming the `roblox://` handler so it can apply your profile first.
 
 ## Features
 
@@ -34,12 +33,12 @@ safely rewriting its config, composing mods into its overlay, launching it, and
 - GTK 4 (**≥ 4.12**) and libadwaita (**≥ 1.4**) at runtime; Rust **≥ 1.96** and
   Cargo to build.
 
-See [COMPATIBILITY.md](COMPATIBILITY.md) for a per-distribution breakdown
+See [COMPATIBILITY.md](COMPATIBILITY.md) for a per distribution breakdown
 (Arch, CachyOS, EndeavourOS, Manjaro, SteamOS, Ubuntu, Debian, Mint, Pop!_OS).
 
 ## Install
 
-Per-user (no root):
+Per user (no root):
 
 ```sh
 make install PREFIX=$HOME/.local
@@ -47,13 +46,13 @@ make install PREFIX=$HOME/.local
 
 Make sure `$HOME/.local/bin` is on your `PATH`, then run `pigmentlab`.
 
-System-wide:
+System wide:
 
 ```sh
 sudo make install PREFIX=/usr
 ```
 
-### Arch — AUR
+### Arch - AUR
 
 Install with your AUR helper:
 
@@ -100,10 +99,6 @@ The sandbox drives the Sober Flatpak via `flatpak-spawn --host`. See
 make uninstall PREFIX=$HOME/.local   # match your install PREFIX
 ```
 
-## Roadmap
-
-[ROADMAP.md](ROADMAP.md) covers what's left, the known verification gaps, and what
-Pigment deliberately won't do.
 
 ## Feedback & bug reports
 
