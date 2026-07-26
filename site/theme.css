@@ -1,11 +1,5 @@
-/* ---- Pigment site theme ------------------------------------------------
-   Shared by the landing page and the guide so the two are one system.
-   Inlined into each page by site/build.py.
-
-   The design is a Linux desktop: terminal windows on a wallpaper, monospace
-   all the way down. Dark only, deliberately — a light variant would be a
-   different idea, not a recolour of this one.                              */
-
+/* Pre-generated config for site template */
+/* yes, I used a fucking site template cause I got rusty at web development */
 /* JetBrains Mono, subset to latin + box/block drawing. */
 @font-face {
   font-family: "JB Mono";
@@ -18,7 +12,7 @@
   font-weight: 700; font-style: normal; font-display: block;
 }
 
-/* Violet/magenta are Pigment's. Green/amber/blue are STATUS, never decoration. */
+/* Colors and stuff */
 :root {
   --void:#08070d;
   --win:rgb(19 16 28 / .82);
@@ -48,8 +42,7 @@ body {
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
 }
-/* The wallpaper: Pigment's own icon, dimmed to near-nothing, so the windows
-   have something to float over. No glow — just a desktop. */
+/* Basic ass wallpaper, nothing fancy */
 body::before {
   content:""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
   background: url("__ICON__") no-repeat 82% 62%;
@@ -59,7 +52,7 @@ body::before {
 a { color: inherit; }
 :focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; border-radius: 2px; }
 
-/* ---- Bar (a tiling-WM status bar; also the site nav) -------------------- */
+/* some bars */
 .wm {
   position: fixed; top: 0; left: 0; right: 0; z-index: 40; height: 40px;
   display: flex; align-items: center; gap: .8rem;
@@ -81,7 +74,7 @@ a { color: inherit; }
 .wm .go:hover { background: var(--magenta); }
 @media (max-width: 700px) { .wm nav a:not(.keep) { display: none; } .wm .ws { display: none; } }
 
-/* ---- Window chrome ----------------------------------------------------- */
+/* window stuff */
 .win {
   background: var(--win); border: 1px solid var(--edge); border-radius: 11px;
   backdrop-filter: blur(14px); overflow: hidden;
@@ -100,14 +93,14 @@ a { color: inherit; }
 .wt { color: var(--muted); font-size: 12.5px; }
 .win > .body { padding: 1rem .95rem 1.15rem; }
 
-/* ---- Prompt ------------------------------------------------------------ */
+/* stuff inside */
 .cmd { margin: 0 0 .8rem; color: var(--text); overflow-wrap: anywhere; }
 .cmd .u { color: var(--violet); font-weight: 700; }
 .cmd .at { color: var(--magenta); font-weight: 700; }
 .cmd .d { color: var(--dim); }
 .hash { color: var(--dim); margin: -.35rem 0 .9rem; }
 
-/* ---- Copyable command -------------------------------------------------- */
+/* install command */
 .run { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
   background: var(--sunk); border: 1px solid var(--edge); border-radius: 6px;
   padding: .5rem .65rem; margin-top: 1rem; }
@@ -140,7 +133,7 @@ a { color: inherit; }
 .links .v { color: var(--blue); }
 .links a:hover .v { text-decoration: underline; }
 
-/* ---- Footer / skip link ------------------------------------------------ */
+/* more shit */
 footer { color: var(--dim); text-align: center; padding: 1.6rem 0 2.4rem; font-size: 12.5px; }
 footer .cur { color: var(--violet); }
 footer a { color: var(--muted); }
