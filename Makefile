@@ -8,6 +8,8 @@
 #   make uninstall             # remove installed files
 #
 # DESTDIR is honored for packaging (e.g. PKGBUILD sets DESTDIR="$pkgdir").
+# Also big shoutout to papa claude for helping me with this makefile, genuinely writting random bs and praying that it works.
+
 
 PREFIX  ?= /usr/local
 DESTDIR ?=
