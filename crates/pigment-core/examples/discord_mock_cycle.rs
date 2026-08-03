@@ -1,5 +1,3 @@
-//! Prove Discord socket discovery + the full presence cycle against a mock
-//! Discord listening at the real $XDG_RUNTIME_DIR/discord-ipc-0.
 use std::io::{Read, Write};
 use std::os::unix::net::UnixListener;
 use std::path::PathBuf;
@@ -28,7 +26,7 @@ fn main() {
         (String::from_utf8_lossy(&set).to_string(), String::from_utf8_lossy(&clear).to_string())
     });
 
-    // Use discovery (connect, not connect_to) — this is the untested path.
+    // Use discovery | not sure how this actually functions tbh.
     let mut client = Client::connect("999999999999999999").expect("discovery + handshake");
     client.set_activity(&Activity::playing("The Strongest Battlegrounds", Some(1783361301))).unwrap();
     client.clear_activity().unwrap();

@@ -1,47 +1,24 @@
-//! A minimal Discord Rich Presence (IPC) client.
-//!
-//! Discord exposes a Unix socket at `$XDG_RUNTIME_DIR/discord-ipc-N` (also under
-//! Flatpak/Snap subpaths). The wire format is dead simple: a little-endian
-//! `(u32 opcode, u32 length)` header followed by a JSON payload. After an opcode-0
-//! handshake carrying the application's client id, activity is set with opcode-1
-//! `SET_ACTIVITY` frames.
-//!
-//! Because Sober already ships its own Discord presence, Pigment's is opt-in and
-//! richer (resolved game name + elapsed time); a user enables one or the other.
-//!
-//! Everything here is best-effort: if Discord isn't running, [`Client::connect`]
-//! returns an error the caller can ignore.
-
+/// discord stuff
 use std::io::{self, Read, Write};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 use std::time::Duration;
 
-/// Opcode for the initial handshake frame.
 const OP_HANDSHAKE: u32 = 0;
-/// Opcode for command/event frames (e.g. `SET_ACTIVITY`, `READY`).
 const OP_FRAME: u32 = 1;
-/// Opcode Discord sends to close the connection (e.g. bad client id).
 const OP_CLOSE: u32 = 2;
 
-/// The Rich Presence payload. All fields optional; an all-`None` activity clears
-/// presence.
+/// The Rich Presence payload | w stack overflow + opus
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Activity {
-    /// First line (e.g. the game name).
     pub details: Option<String>,
-    /// Second line (e.g. "In a game").
     pub state: Option<String>,
-    /// Unix start time, for Discord's elapsed-time counter.
     pub start_unix: Option<i64>,
-    /// Asset key for the large image (must be uploaded to the Discord app).
     pub large_image: Option<String>,
-    /// Hover text for the large image.
     pub large_text: Option<String>,
 }
 
 impl Activity {
-    /// Build a "playing <game>" presence with an optional elapsed-time start.
     pub fn playing(game: &str, since_unix: Option<i64>) -> Self {
         Self {
             details: Some(game.to_string()),
@@ -52,7 +29,6 @@ impl Activity {
         }
     }
 
-    /// Render the Discord `activity` JSON object.
     fn to_json(&self) -> serde_json::Value {
         let mut obj = serde_json::Map::new();
         if let Some(d) = &self.details {
@@ -78,14 +54,12 @@ impl Activity {
     }
 }
 
-/// A connected Discord IPC client.
 pub struct Client {
     stream: UnixStream,
     nonce: u64,
 }
 
 impl Client {
-    /// Discover the Discord IPC socket and connect, performing the handshake.
     pub fn connect(client_id: &str) -> io::Result<Self> {
         let path = find_ipc_socket().ok_or_else(|| {
             io::Error::new(io::ErrorKind::NotFound, "no discord-ipc socket found")
@@ -93,7 +67,6 @@ impl Client {
         Self::connect_to(&path, client_id)
     }
 
-    /// Connect to an explicit socket path (used by discovery and by tests).
     pub fn connect_to(path: &std::path::Path, client_id: &str) -> io::Result<Self> {
         let stream = UnixStream::connect(path)?;
         stream.set_read_timeout(Some(Duration::from_secs(5)))?;
@@ -102,7 +75,6 @@ impl Client {
 
         let handshake = serde_json::json!({ "v": 1, "client_id": client_id });
         client.send(OP_HANDSHAKE, &handshake)?;
-        // Expect a READY frame; a CLOSE means the handshake was rejected.
         let (opcode, _payload) = client.recv()?;
         if opcode == OP_CLOSE {
             return Err(io::Error::new(
@@ -113,12 +85,10 @@ impl Client {
         Ok(client)
     }
 
-    /// Set the Rich Presence activity.
     pub fn set_activity(&mut self, activity: &Activity) -> io::Result<()> {
         self.set_activity_value(activity.to_json())
     }
 
-    /// Clear the Rich Presence.
     pub fn clear_activity(&mut self) -> io::Result<()> {
         self.set_activity_value(serde_json::Value::Null)
     }
@@ -133,7 +103,6 @@ impl Client {
         self.send(OP_FRAME, &frame)
     }
 
-    /// Send an opcode + JSON payload as one framed message.
     fn send(&mut self, opcode: u32, payload: &serde_json::Value) -> io::Result<()> {
         let bytes = serde_json::to_vec(payload)?;
         self.stream.write_all(&encode_header(opcode, bytes.len() as u32))?;
@@ -141,7 +110,6 @@ impl Client {
         self.stream.flush()
     }
 
-    /// Read one framed message: (opcode, payload bytes).
     fn recv(&mut self) -> io::Result<(u32, Vec<u8>)> {
         let mut header = [0u8; 8];
         self.stream.read_exact(&mut header)?;
@@ -153,7 +121,6 @@ impl Client {
     }
 }
 
-/// Encode the 8-byte little-endian frame header.
 fn encode_header(opcode: u32, len: u32) -> [u8; 8] {
     let mut h = [0u8; 8];
     h[0..4].copy_from_slice(&opcode.to_le_bytes());
@@ -161,8 +128,7 @@ fn encode_header(opcode: u32, len: u32) -> [u8; 8] {
     h
 }
 
-/// Locate a Discord IPC socket, checking the base runtime dir and the common
-/// Flatpak/Snap subdirectories, for ids 0–9.
+/// Locate a Discord IPC socket | had to manually figure this one out cause opus was a dumb fuck
 fn find_ipc_socket() -> Option<PathBuf> {
     let runtime = std::env::var_os("XDG_RUNTIME_DIR")?;
     let base = PathBuf::from(runtime);
@@ -212,8 +178,7 @@ mod tests {
         assert!(v.get("state").is_some());
     }
 
-    /// A mock Discord that accepts the handshake, replies READY, and captures the
-    /// first SET_ACTIVITY frame — exercising the real client end to end.
+    /// A mock discord that accepts the handshake
     #[test]
     fn client_handshakes_and_sends_activity_over_a_socket() {
         let dir = tempfile::tempdir().unwrap();
@@ -222,16 +187,13 @@ mod tests {
 
         let server = thread::spawn(move || {
             let (mut conn, _) = listener.accept().unwrap();
-            // Read handshake.
             let (op, payload) = read_frame(&mut conn);
             assert_eq!(op, OP_HANDSHAKE);
             let hs: serde_json::Value = serde_json::from_slice(&payload).unwrap();
             assert_eq!(hs["client_id"], "123456789");
-            // Reply READY.
             let ready = serde_json::to_vec(&serde_json::json!({ "cmd": "DISPATCH", "evt": "READY" })).unwrap();
             conn.write_all(&encode_header(OP_FRAME, ready.len() as u32)).unwrap();
             conn.write_all(&ready).unwrap();
-            // Read the SET_ACTIVITY frame and return its parsed payload.
             let (op2, payload2) = read_frame(&mut conn);
             assert_eq!(op2, OP_FRAME);
             serde_json::from_slice::<serde_json::Value>(&payload2).unwrap()
@@ -254,7 +216,6 @@ mod tests {
         assert!(frame["args"]["pid"].as_u64().is_some());
     }
 
-    /// Helper mirroring `Client::recv` for the mock server side.
     fn read_frame(conn: &mut UnixStream) -> (u32, Vec<u8>) {
         let mut header = [0u8; 8];
         conn.read_exact(&mut header).unwrap();

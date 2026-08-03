@@ -1,16 +1,9 @@
-//! FastFlags page: a validating JSON editor over Sober's `fflags`.
-//!
-//! FastFlags are a plain string→value map, the exact shape Bloxstrap uses — so a
-//! raw JSON editor is both the most powerful interface and a free Bloxstrap
-//! import path (paste a `ClientAppSettings.json` body and Apply). Apply parses
-//! and validates the text, requires a JSON object, then writes it through the
-//! safe config writer, which re-checks validity before touching disk.
-
+/// the good shit, fastflags
 use adw::prelude::*;
 use pigment_core::{Config, Sober};
 use serde_json::Value;
 
-/// Build the FastFlags page.
+/// build the fastflags page.
 pub fn build() -> gtk::Widget {
     let Some(sober) = Sober::discover() else {
         return error_page("Could not determine your home directory.");
@@ -22,7 +15,7 @@ pub fn build() -> gtk::Widget {
         Err(_) => return error_page("Launch Roblox through Sober once so it creates its config, then reopen this page."),
     };
 
-    // Pretty-print the current fflags map as the editor's starting text.
+    // Pretty-print the current fflags map as the editor starting text.
     let current = config
         .fflags()
         .cloned()
@@ -65,14 +58,14 @@ pub fn build() -> gtk::Widget {
         .build();
     root.append(&editor);
 
-    // Status + apply row.
+    // status + apply row.
     let status = gtk::Label::builder()
         .xalign(0.0)
         .hexpand(true)
         .wrap(true)
         .css_classes(["dim-label"])
         .build();
-    // Clear/reset: wipe all FastFlags back to an empty set.
+    // fastflag clear
     let clear = gtk::Button::builder()
         .label("Clear All")
         .tooltip_text("Remove all FastFlags")
@@ -83,7 +76,7 @@ pub fn build() -> gtk::Widget {
         let status = status.clone();
         let config_path = config_path.clone();
         clear.connect_clicked(move |_| {
-            // Reload fresh so non-fflag keys survive, then empty the fflag map.
+            // reload fresh so non fflag keys survive, then empty the fflag map.
             let mut cfg = match Config::load(&config_path) {
                 Ok(c) => c,
                 Err(e) => {
@@ -124,7 +117,7 @@ pub fn build() -> gtk::Widget {
                 set_error(&status, "FastFlags must be a JSON object, e.g. { \"FFlagFoo\": true }");
                 return;
             };
-            // Reload fresh so non-fflag keys and concurrent edits survive.
+            // reload fresh so non fflag keys and current edits survive.
             let mut cfg = match Config::load(&config_path) {
                 Ok(c) => c,
                 Err(e) => {
@@ -152,7 +145,7 @@ pub fn build() -> gtk::Widget {
     root.upcast()
 }
 
-/// Extract the full text of a buffer.
+/// extract the full text of a buffer.
 fn buffer_text(buffer: &gtk::TextBuffer) -> String {
     let (start, end) = buffer.bounds();
     buffer.text(&start, &end, false).to_string()

@@ -1,4 +1,4 @@
-//! Home page: Sober runtime status, the default-launcher toggle, and launch.
+//homepage, nothing too fancy
 
 use std::cell::Cell;
 use std::rc::Rc;
@@ -19,8 +19,7 @@ pub fn build() -> gtk::Widget {
         .margin_end(12)
         .build();
 
-    // Title block. Uses the installed Pigment app icon; falls back gracefully to
-    // a generic icon when running uninstalled.
+    // Title block, using tPigment app icon, falls back to a generic icon when running uninstall
     let icon = gtk::Image::builder()
         .icon_name("net.pigmentlab.Pigment")
         .pixel_size(96)
@@ -37,28 +36,32 @@ pub fn build() -> gtk::Widget {
     container.append(&heading);
     container.append(&subtitle);
 
-    // Runtime status group.
-    let installed = sober.as_ref().map(|s| s.is_installed()).unwrap_or(false);
-    let version = sober.as_ref().and_then(|s| s.installed_version());
+    // runtime status group.
+    let build = sober.as_ref().and_then(|s| s.installed_build());
+    let installed = build.is_some();
     let has_config = sober.as_ref().map(|s| s.has_config()).unwrap_or(false);
 
     let group = adw::PreferencesGroup::builder().title("Sober Runtime").build();
     group.add(&status_row(
         "Installed",
-        &match (&installed, &version) {
-            (true, Some(v)) => format!("Yes — {v}"),
-            (true, None) => "Yes".into(),
-            (false, _) => "Not found".into(),
+        &match build.as_ref().and_then(|b| b.label()) {
+            Some(label) => format!("Yes — {label}"),
+            None if installed => "Yes".into(),
+            None => "Not found".into(),
         },
         installed,
     ));
+    // some update checks
+    if let Some(client) = sober.as_ref().and_then(|s| s.roblox_version()) {
+        group.add(&status_row("Roblox client", &client, true));
+    }
     group.add(&status_row(
         "Configuration",
         if has_config { "Present" } else { "Not yet created" },
         has_config,
     ));
 
-    // Not-installed guidance.
+    // if not installed
     if !installed {
         let banner = adw::Banner::builder()
             .title("Sober is not installed. Install it, then relaunch Pigment.")
@@ -74,7 +77,7 @@ pub fn build() -> gtk::Widget {
         container.append(&cmd);
     }
 
-    // Launch button.
+    // luanch button
     let launch = gtk::Button::builder()
         .label("Launch Roblox")
         .halign(gtk::Align::Center)
@@ -93,8 +96,12 @@ pub fn build() -> gtk::Widget {
 
     container.append(&group);
 
-    // Opt-in: become the system roblox:// handler. Only meaningful with Sober
-    // present; the switch reflects and controls the real system association.
+    // stale refresh warning, filled in from a background check.
+    if let Some(sober) = sober.clone() {
+        container.append(&update_banner(sober));
+    }
+
+
     if installed {
         container.append(&default_launcher_group());
     }
@@ -108,16 +115,33 @@ pub fn build() -> gtk::Widget {
     super::scrolled(&clamp).upcast()
 }
 
-/// The opt-in "make Pigment the default launcher" control.
-///
-/// The switch reflects the live system handler and drives
-/// [`protocol::register`] / [`protocol::restore_sober`]. On failure it reverts
-/// itself (guarded against re-entrancy) and reports the reason inline. Nothing
-/// happens until the user flips it — takeover is never automatic.
+//update banner - self explanatory
+fn update_banner(sober: Sober) -> adw::Banner {
+    let banner = adw::Banner::builder().revealed(false).build();
+
+    let (tx, rx) = async_channel::bounded::<String>(1);
+    std::thread::spawn(move || {
+        if sober.update_available().is_some() {
+            let _ = tx.send_blocking("Update Sober: flatpak update org.vinegarhq.Sober".to_string());
+        }
+    });
+
+    let banner_weak = banner.clone();
+    gtk::glib::spawn_future_local(async move {
+        if let Ok(msg) = rx.recv().await {
+            banner_weak.set_title(&msg);
+            banner_weak.set_revealed(true);
+        }
+    });
+
+    banner
+}
+
+/// option to make pigment the default launcher
 fn default_launcher_group() -> adw::PreferencesGroup {
     let group = adw::PreferencesGroup::builder()
         .title("Default Launcher")
-        .description("Let Pigment intercept Roblox links to apply your profile, then hand off to Sober. You can switch back anytime.")
+        .description("Let pigment be default launcher. You can switch back anytime :)")
         .build();
 
     let row = adw::SwitchRow::builder()

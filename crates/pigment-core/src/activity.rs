@@ -1,31 +1,15 @@
-//! Parsing Sober's logs into game-session activity.
-//!
-//! Sober wraps the Roblox client's log lines with an `info: Roblox: ` prefix and
-//! writes its own `debug: rbx.jni: …` lines. The events we care about, verified
-//! against real logs:
-//!
-//! * **Join** — `[FLog::Output] ! Joining game '<jobId>' place <placeId> at <ip>`
-//! * **Join detail** — `[FLog::GameJoinLoadTime] … placeid:<n>, … universeid:<n>`
-//!   (the adjacent line, giving us the universe id for name lookup)
-//! * **Leave** — `rbx.jni: onGameLeaveBegin()` or `[DFLog::NetworkClient]
-//!   Client:Disconnect`
-//!
-//! [`sessions`] pairs joins with the following leave into [`Session`]s;
-//! [`current_status`] reports whether a game is in progress right now (used to
-//! drive Discord Rich Presence).
-
 use std::fs;
 use std::io;
 use std::path::Path;
 
 use time::OffsetDateTime;
 
-/// One game session: a join and the leave that ended it (if any).
+/// 1 game session: a join and the leave that ended it
 #[derive(Debug, Clone, PartialEq)]
 pub struct Session {
     pub place_id: u64,
     pub job_id: String,
-    /// Universe id, if the join-detail line was seen — used for name lookup.
+    /// Universe id
     pub universe_id: Option<u64>,
     pub joined_at: Option<OffsetDateTime>,
     pub left_at: Option<OffsetDateTime>,
@@ -40,7 +24,7 @@ impl Session {
         }
     }
 
-    /// Whether the game is still in progress (joined, no leave recorded).
+    /// Whether the game is still in progress
     pub fn is_active(&self) -> bool {
         self.left_at.is_none()
     }
@@ -55,12 +39,11 @@ pub enum Status {
         universe_id: Option<u64>,
         since: Option<OffsetDateTime>,
     },
-    /// Not in a game.
+    /// not in a game.
     Idle,
 }
 
-/// Parse all sessions from a log file, oldest first. A missing file yields an
-/// empty list rather than an error.
+/// Parse all sessions from a log file, oldest first..
 pub fn sessions_from_file(path: impl AsRef<Path>) -> io::Result<Vec<Session>> {
     match fs::read_to_string(path.as_ref()) {
         Ok(text) => Ok(sessions(&text)),
@@ -74,7 +57,7 @@ pub fn sessions(log: &str) -> Vec<Session> {
     let mut out: Vec<Session> = Vec::new();
     for line in log.lines() {
         if let Some((place_id, job_id, at)) = parse_join(line) {
-            // A new join closes any still-open session implicitly (no leave seen).
+            // A new join closes any still open session implicitly
             out.push(Session {
                 place_id,
                 job_id,
@@ -90,10 +73,6 @@ pub fn sessions(log: &str) -> Vec<Session> {
                 }
             }
         } else if is_leave(line) {
-            // Close the open session only on a leave line that carries a
-            // timestamp (the `Client:Disconnect` lines do; the timestamp-less
-            // `onGameLeaveBegin` does not), so durations are accurate. Multiple
-            // disconnect lines are ignored after the first via the None guard.
             if let Some(ts) = parse_timestamp(line) {
                 if let Some(last) = out.last_mut() {
                     if last.left_at.is_none() {
@@ -106,7 +85,6 @@ pub fn sessions(log: &str) -> Vec<Session> {
     out
 }
 
-/// The current activity status, from the newest session in the log.
 pub fn current_status(log: &str) -> Status {
     match sessions(log).into_iter().next_back() {
         Some(s) if s.is_active() => Status::InGame {
@@ -118,7 +96,7 @@ pub fn current_status(log: &str) -> Status {
     }
 }
 
-/// Parse a join line → (place_id, job_id, timestamp).
+
 fn parse_join(line: &str) -> Option<(u64, String, Option<OffsetDateTime>)> {
     let rest = line.split_once("! Joining game '")?.1;
     let (job_id, rest) = rest.split_once('\'')?;
@@ -132,7 +110,7 @@ fn parse_join(line: &str) -> Option<(u64, String, Option<OffsetDateTime>)> {
     Some((place_id, job_id.to_string(), parse_timestamp(line)))
 }
 
-/// Parse the universe id from a `GameJoinLoadTime` line.
+/// universe id from a `GameJoinLoadTime` line.
 fn parse_join_detail(line: &str) -> Option<u64> {
     if !line.contains("GameJoinLoadTime") {
         return None;
@@ -145,7 +123,7 @@ fn is_leave(line: &str) -> bool {
     line.contains("onGameLeaveBegin(") || line.contains("[DFLog::NetworkClient] Client:Disconnect")
 }
 
-/// Extract the number following `key` (e.g. `universeid:`) in a line.
+/// Extract the number following key in a line.
 fn parse_kv_number(line: &str, key: &str) -> Option<u64> {
     let after = line.split_once(key)?.1;
     let digits: String = after
@@ -156,19 +134,17 @@ fn parse_kv_number(line: &str, key: &str) -> Option<u64> {
     digits.parse().ok()
 }
 
-/// Parse the ISO-8601 timestamp that Roblox lines carry right after `Roblox: `.
 fn parse_timestamp(line: &str) -> Option<OffsetDateTime> {
     let after = line.split_once("Roblox: ")?.1;
-    // The timestamp is the first comma-separated field, e.g. 2026-07-06T18:08:20.542Z
     let iso = after.split(',').next()?.trim();
     OffsetDateTime::parse(iso, &time::format_description::well_known::Rfc3339).ok()
 }
 
+///testingg..... | More auto generated
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    // Real lines captured from this machine's Sober logs.
     const JOIN: &str = "info: Roblox: 2026-07-06T18:08:20.542Z,66.542740,1773f6c0,6 [FLog::Output] ! Joining game '135d0895-503a-4884-885e-c963758024e3' place 17625359962 at 10.186.9.73";
     const DETAIL: &str = "info: Roblox: 2026-07-06T18:08:20.542Z,66.542816,1773f6c0,6 [FLog::GameJoinLoadTime] Report game_join_loadtime: sid:afca873c, clienttime:1783361301.27, join_time:0.25, referral_page:, placeid:17625359962, userid:1337903335, universeid:6035872082, ";
     const LEAVE: &str = "info: Roblox: 2026-07-06T18:10:54.544Z,220.544342,206cf6c0,6,Info [DFLog::NetworkClient] Client:Disconnect";

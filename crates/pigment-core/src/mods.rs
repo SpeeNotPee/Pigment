@@ -1,23 +1,4 @@
-//! Mod management via Sober's `asset_overlay` directory.
-//!
-//! Sober exposes a *sanctioned* overlay: any file placed under
-//! `data/sober/asset_overlay/`, mirroring the layout inside the Roblox APK's
-//! `assets/` directory, replaces the corresponding game asset on next launch. No
-//! binary patching, no anti-cheat contact.
-//!
-//! Two facts shape this module:
-//!
-//! * The **authoritative** list of replaceable assets is the APK itself
-//!   (`base.apk`, a ZIP). [`ApkAssetTree`] reads it so mods can be validated
-//!   against real paths — a mod file at a path Roblox doesn't ship simply won't
-//!   take effect, and we want to warn about that.
-//! * Because Sober runs the *Android* client, asset paths differ from the Windows
-//!   client's. Windows Bloxstrap mods therefore do **not** drop in unchanged;
-//!   validation against the APK tree is how we catch that.
-//!
-//! Pigment owns the overlay directory: [`compose_overlay`] rebuilds it from the
-//! ordered set of enabled mods, so the overlay is always exactly the mods and
-//! nothing stale.
+// mod management
 
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
@@ -25,21 +6,15 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-/// Prefix inside the APK under which game assets live.
+/// prefix inside the APK under which game assets live.
 const APK_ASSETS_PREFIX: &str = "assets/";
 
-/// The authoritative set of asset paths Roblox ships, read from `base.apk`.
-///
-/// Paths are stored relative to the APK's `assets/` directory (and thus relative
-/// to the overlay root), using `/` separators — e.g.
-/// `content/textures/Cursors/KeyboardMouse/ArrowCursor.png`.
 #[derive(Debug, Clone, Default)]
 pub struct ApkAssetTree {
     files: BTreeSet<String>,
 }
 
 impl ApkAssetTree {
-    /// Read and index the asset entries of an APK (ZIP) file.
     pub fn read(apk_path: impl AsRef<Path>) -> io::Result<Self> {
         let file = fs::File::open(apk_path.as_ref())?;
         let mut zip = zip::ZipArchive::new(file)
@@ -63,32 +38,23 @@ impl ApkAssetTree {
         Ok(Self { files })
     }
 
-    /// Number of indexed asset files.
     pub fn len(&self) -> usize {
         self.files.len()
     }
 
-    /// Whether the tree indexed no assets.
     pub fn is_empty(&self) -> bool {
         self.files.is_empty()
     }
 
-    /// Whether Roblox ships an asset at this overlay-relative path.
     pub fn contains(&self, rel_path: &str) -> bool {
         self.files.contains(rel_path)
     }
 
-    /// Iterate all asset paths (sorted).
     pub fn iter(&self) -> impl Iterator<Item = &str> {
         self.files.iter().map(String::as_str)
     }
 }
 
-/// A mod: a named directory tree of replacement files.
-///
-/// Every file beneath `root` maps to the same relative path within the overlay
-/// (and thus within the APK's `assets/`). For example, a file at
-/// `<root>/content/textures/Cursors/KeyboardMouse/ArrowCursor.png` replaces that
 /// exact game asset.
 #[derive(Debug, Clone)]
 pub struct ModSource {
@@ -104,8 +70,6 @@ impl ModSource {
         }
     }
 
-    /// The overlay-relative paths this mod provides, sorted, using `/`
-    /// separators. Directories are not included, only files.
     pub fn files(&self) -> io::Result<Vec<String>> {
         let mut out = Vec::new();
         collect_files(&self.root, &self.root, &mut out)?;
@@ -113,8 +77,6 @@ impl ModSource {
         Ok(out)
     }
 
-    /// Paths in this mod that Roblox does **not** ship (per the APK tree) and so
-    /// likely won't take effect — usually a wrong path or a Windows-client mod.
     pub fn unknown_paths(&self, tree: &ApkAssetTree) -> io::Result<Vec<String>> {
         Ok(self
             .files()?
@@ -133,10 +95,7 @@ pub struct Conflict {
     pub mods: Vec<String>,
 }
 
-/// Detect files claimed by more than one mod, in the given precedence order.
-///
-/// Order matters: in [`compose_overlay`] later mods overwrite earlier ones, so
-/// the last entry in a conflict's `mods` list is the effective winner.
+/// detect files claimed by more than one mod
 pub fn detect_conflicts(mods: &[ModSource]) -> io::Result<Vec<Conflict>> {
     let mut providers: BTreeMap<String, Vec<String>> = BTreeMap::new();
     for m in mods {
@@ -151,32 +110,24 @@ pub fn detect_conflicts(mods: &[ModSource]) -> io::Result<Vec<Conflict>> {
         .collect())
 }
 
-/// The result of composing the overlay.
+/// the result of composing the overlay.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ComposeReport {
-    /// Effective winner for each written path: `path -> mod name`.
     pub winners: BTreeMap<String, String>,
 }
 
 impl ComposeReport {
-    /// Number of files written into the overlay.
+    /// # of files written into the overlay.
     pub fn file_count(&self) -> usize {
         self.winners.len()
     }
 }
 
-/// Rebuild `overlay_dir` from the ordered set of enabled mods.
-///
-/// The overlay is cleared first, then each mod's files are copied in order, so
-/// later mods win conflicts and no file from a previously-enabled mod lingers.
-/// Pigment treats the overlay as wholly owned by this function.
 pub fn compose_overlay(
     overlay_dir: impl AsRef<Path>,
     ordered_mods: &[ModSource],
 ) -> io::Result<ComposeReport> {
     let overlay_dir = overlay_dir.as_ref();
-
-    // Clear prior contents (the overlay is derived state), then recreate.
     if overlay_dir.exists() {
         fs::remove_dir_all(overlay_dir)?;
     }
@@ -196,7 +147,6 @@ pub fn compose_overlay(
     Ok(ComposeReport { winners })
 }
 
-/// Remove all overlay contents, reverting to stock assets on next launch.
 pub fn clear_overlay(overlay_dir: impl AsRef<Path>) -> io::Result<()> {
     let overlay_dir = overlay_dir.as_ref();
     if overlay_dir.exists() {
@@ -206,8 +156,6 @@ pub fn clear_overlay(overlay_dir: impl AsRef<Path>) -> io::Result<()> {
     Ok(())
 }
 
-/// Recursively collect files under `dir`, as paths relative to `base` with `/`
-/// separators.
 fn collect_files(base: &Path, dir: &Path, out: &mut Vec<String>) -> io::Result<()> {
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
@@ -224,7 +172,6 @@ fn collect_files(base: &Path, dir: &Path, out: &mut Vec<String>) -> io::Result<(
     Ok(())
 }
 
-/// Render a relative path with `/` separators regardless of platform.
 fn rel_to_slash(rel: &Path) -> String {
     rel.components()
         .filter_map(|c| c.as_os_str().to_str())
@@ -237,15 +184,12 @@ mod tests {
     use super::*;
     use std::io::Write;
 
-    /// Write `contents` to `dir/rel`, creating parents.
     fn write_file(dir: &Path, rel: &str, contents: &[u8]) {
         let p = dir.join(rel);
         fs::create_dir_all(p.parent().unwrap()).unwrap();
         fs::File::create(p).unwrap().write_all(contents).unwrap();
     }
 
-    /// Build a minimal APK-shaped ZIP with the given asset paths (relative to
-    /// `assets/`), plus a non-asset entry that must be ignored.
     fn make_apk(path: &Path, asset_paths: &[&str]) {
         let file = fs::File::create(path).unwrap();
         let mut zip = zip::ZipWriter::new(file);

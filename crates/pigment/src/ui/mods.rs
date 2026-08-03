@@ -1,21 +1,12 @@
-//! Mods page: install, inspect, and enable asset-overlay mods.
-//!
-//! A mod is a file tree mirroring Roblox's APK `assets/` layout. Installed mods
-//! live in the library ([`ModLibrary`]); *enabling* one adds it to the active
-//! profile's mod list and recomposes Sober's overlay, so the same set is applied
-//! on launch. If no profile is active, enabling the first mod auto-creates and
-//! activates a "Default" profile snapshotted from the current setup.
-//!
-//! Each mod is validated against the real APK asset tree so paths that Roblox
-//! doesn't ship (typos, or Windows-client mods that don't match Android paths)
-//! are flagged as unlikely to take effect.
-
+///Pigment: Yo bloxstrap leme copy your homework
+///Bloxstrap: sure, just dont make it too obvious
+///Pigment:
 use std::rc::Rc;
 
 use adw::prelude::*;
 use pigment_core::{mods, ApkAssetTree, ModLibrary, ProfileStore, Sober};
 
-/// Shared page context, cloned into row callbacks.
+/// shared page context, cloned into row callbacks.
 struct Ctx {
     lib: ModLibrary,
     store: ProfileStore,
@@ -36,7 +27,7 @@ pub fn build() -> gtk::Widget {
         return error_page("Could not determine your configuration directories.");
     };
 
-    // The authoritative asset list, for validating mod paths. Best-effort.
+    // The authoritative asset list for validating mod paths
     let tree = ApkAssetTree::read(sober.paths().base_apk()).ok();
 
     let page = gtk::Box::builder()
@@ -89,7 +80,7 @@ pub fn build() -> gtk::Widget {
         status,
     });
 
-    // Install-from-folder via a native folder picker.
+    // Install from folder via a native folder picker.
     {
         let ctx = ctx.clone();
         install.connect_clicked(move |btn| {
@@ -122,14 +113,14 @@ pub fn build() -> gtk::Widget {
     super::scrolled(&page).upcast()
 }
 
-/// Rebuild the mod list and the conflict banner from current state.
+/// rebuild the mod list and the conflict banner from current state.
 fn populate(ctx: &Rc<Ctx>) {
     ctx.list.remove_all();
 
     let installed = ctx.lib.installed().unwrap_or_default();
     let enabled = active_enabled_mods(&ctx.store);
 
-    // Conflict banner: files claimed by more than one *enabled* mod.
+    // Conflict banner: files claimed by more than one enabled mod.
     update_conflict_banner(ctx, &installed, &enabled);
 
     if installed.is_empty() {
@@ -147,7 +138,7 @@ fn populate(ctx: &Rc<Ctx>) {
         let row = adw::SwitchRow::builder().title(&m.name).active(is_on).build();
         row.set_subtitle(&describe_mod(&m, ctx.tree.as_ref()));
 
-        // Remove button (prefix so it doesn't crowd the switch).
+        // Remove button
         let remove = gtk::Button::builder()
             .icon_name("user-trash-symbolic")
             .tooltip_text("Uninstall mod")
@@ -157,7 +148,7 @@ fn populate(ctx: &Rc<Ctx>) {
         {
             let (ctx, name) = (ctx.clone(), m.name.clone());
             remove.connect_clicked(move |_| {
-                // Disable first so it leaves the profile/overlay, then delete.
+                // Disable first so it leaves the profile, then delete.
                 let _ = set_enabled(&ctx, &name, false);
                 match ctx.lib.remove(&name) {
                     Ok(()) => set_ok(&ctx.status, &format!("Uninstalled “{name}”.")),
@@ -169,7 +160,7 @@ fn populate(ctx: &Rc<Ctx>) {
         }
         row.add_prefix(&remove);
 
-        // Enable/disable toggle.
+        // toggle.
         {
             let (ctx, name) = (ctx.clone(), m.name.clone());
             row.connect_active_notify(move |row| {
@@ -181,8 +172,7 @@ fn populate(ctx: &Rc<Ctx>) {
                     }
                     Err(e) => set_error(&ctx.status, &format!("Could not update mod: {e}")),
                 }
-                // Rebuild after the signal settles (refreshes conflicts + reverts
-                // the switch if the operation failed).
+                // Rebuild after the signal settles
                 let ctx = ctx.clone();
                 gtk::glib::idle_add_local_once(move || populate(&ctx));
             });
@@ -192,13 +182,12 @@ fn populate(ctx: &Rc<Ctx>) {
     }
 }
 
-/// Enable or disable a mod by editing the active profile's mod list and
-/// recomposing the overlay. Auto-creates a "Default" profile if none is active.
+/// Enable or disable a mod by editing the active profile's mod list and recomposing the overlay. Auto- reates a default profile if none is active.
 fn set_enabled(ctx: &Rc<Ctx>, name: &str, enable: bool) -> Result<(), String> {
     let active = match ctx.store.active() {
         Some(a) => a,
         None if enable => {
-            // Snapshot the current setup so applying it doesn't wipe settings.
+            // Snapshot the current setup so applying it doesn wipe settings.
             let profile = super::snapshot_profile("Default", &ctx.sober)?;
             ctx.store.save(&profile).map_err(|e| e.to_string())?;
             ctx.store.set_active(Some("Default")).map_err(|e| e.to_string())?;
@@ -223,7 +212,7 @@ fn set_enabled(ctx: &Rc<Ctx>, name: &str, enable: bool) -> Result<(), String> {
     Ok(())
 }
 
-/// The mod names enabled in the active profile (empty if none active).
+/// the mod names enabled in the active profile (empty if none active)
 fn active_enabled_mods(store: &ProfileStore) -> Vec<String> {
     store
         .active()
@@ -232,7 +221,7 @@ fn active_enabled_mods(store: &ProfileStore) -> Vec<String> {
         .unwrap_or_default()
 }
 
-/// A one-line description of a mod: file count and APK-validation summary.
+/// summary of the mod: file count and APK validation summary.
 fn describe_mod(m: &pigment_core::ModSource, tree: Option<&ApkAssetTree>) -> String {
     let files = m.files().map(|f| f.len()).unwrap_or(0);
     let mut s = format!("{files} file{}", if files == 1 { "" } else { "s" });
@@ -248,7 +237,7 @@ fn describe_mod(m: &pigment_core::ModSource, tree: Option<&ApkAssetTree>) -> Str
     s
 }
 
-/// Show or hide the conflict banner based on enabled-mod file overlaps.
+/// show or hide the conflict banner based on enabled mod file overlaps.
 fn update_conflict_banner(ctx: &Rc<Ctx>, installed: &[pigment_core::ModSource], enabled: &[String]) {
     let enabled_sources: Vec<_> = installed
         .iter()

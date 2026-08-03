@@ -264,7 +264,7 @@ code.inl { background: var(--sunk); border: 1px solid var(--edge); border-radius
         <div class="prose">
           <ul><li>The <b>Sober</b> Flatpak: <code class="inl">org.vinegarhq.Sober</code></li>
 <li><b>GTK 4.12+</b> and <b>libadwaita 1.4+</b> at runtime</li>
-<li><b>Rust 1.96+</b> and Cargo — only if you build from source</li>
+<li><b>Rust 1.96+</b> and Cargo — only if you build from source. No Debian or Ubuntu release packages a <code class="inl">rustc</code> this new, so use <a href="https://rustup.rs/">rustup</a> there</li>
 <li>Optional: <code class="inl">xdg-utils</code> (to set the default handler) and Discord (for Rich Presence)</li></ul>
         </div>
       </div>
@@ -283,10 +283,14 @@ code.inl { background: var(--sunk); border: 1px solid var(--edge); border-radius
           <p><b>Arch, CachyOS, EndeavourOS, Manjaro</b> — from the AUR:</p>
           <div class="run block"><span class="p">$</span><code>yay -S pigment-launcher</code><button class="copy" data-copy="yay -S pigment-launcher">copy</button></div>
           <p><code class="inl">pigment-launcher-git</code> tracks <code class="inl">main</code> if you’d rather live on the edge.</p>
-          <p><b>Steam Deck, Ubuntu 24.04+, Mint 22+, Pop!_OS</b> — Flatpak. The Flathub submission is still in review; until it lands, build it from the manifest in the repo:</p>
-          <div class="run block"><span class="p">$</span><code>flatpak run org.flatpak.Builder --user --install --force-clean \
-  build-dir packaging/flatpak/net.pigmentlab.Pigment.yaml</code><button class="copy" data-copy="flatpak run org.flatpak.Builder --user --install --force-clean \
-  build-dir packaging/flatpak/net.pigmentlab.Pigment.yaml">copy</button></div>
+          <p><b>Debian 13+, Ubuntu 24.04+, Mint 22+, Pop!_OS</b> — there is no <code class="inl">.deb</code>, but a script does the whole source build for you. It installs the apt dependencies, checks your GTK and libadwaita versions <i>before</i> building, and sets up rustup, which you <i>will</i> need: no Debian or Ubuntu release packages a <code class="inl">rustc</code> new enough, not even 26.04.</p>
+          <div class="run block"><span class="p">$</span><code>git clone https://github.com/SpeeNotPee/Pigment.git
+cd Pigment
+./packaging/install-debian.sh</code><button class="copy" data-copy="git clone https://github.com/SpeeNotPee/Pigment.git
+cd Pigment
+./packaging/install-debian.sh">copy</button></div>
+          <p><b>Ubuntu 22.04, Debian 12, Mint 21 and Pop!_OS 22.04 cannot run Pigment</b> — their libadwaita is below the 1.4 floor, and there is no Flatpak to bundle a newer one. The script tells you this in seconds instead of failing deep into a build. Upgrading the distro is the only path.</p>
+          <p><b>Steam Deck</b> — same source build, but install to <code class="inl">~/.local</code> so an OS update doesn’t wipe it.</p>
           <p><b>Any distro</b> — from source:</p>
           <div class="run block"><span class="p">$</span><code>git clone https://github.com/SpeeNotPee/Pigment.git
 cd Pigment
@@ -304,7 +308,8 @@ make install PREFIX=$HOME/.local">copy</button></div>
         <p class="cmd"><span class="u">you</span><span class="at">@pigmentlab</span><span class="d">:~$</span> pigmentlab</p>
         <h2>First run</h2>
         <div class="prose">
-          <p>Launch <code class="inl">pigmentlab</code> from your app menu or terminal. The <b>Home</b> page shows whether Sober is installed and detected, its version, and whether its config exists yet. Press <span class="kbd">Launch Roblox</span> to start Sober. If Sober has never run, open it once so it can create its configuration — then the Settings, FastFlags and other pages light up.</p>
+          <p>Launch <code class="inl">pigmentlab</code> from your app menu or terminal. The <b>Home</b> page shows whether Sober is installed and detected, which <i>build</i> it is, the Roblox client version it has fetched, and whether its config exists yet. Press <span class="kbd">Launch Roblox</span> to start Sober. If Sober has never run, open it once so it can create its configuration — then the Settings, FastFlags and other pages light up.</p>
+          <p>Home also checks Flathub in the background and shows a banner when a newer Sober build is available. This matters more than it sounds: VinegarHQ ships Sober as periodic <b>refreshes</b> that keep the same version number — 1.7.1 has been rebuilt roughly weekly — and Roblox rejects clients that fall behind. A version match is not proof you are current, so Pigment compares the Flatpak commit instead.</p>
         </div>
       </div>
     </section>
@@ -315,9 +320,12 @@ make install PREFIX=$HOME/.local">copy</button></div>
         <p class="cmd"><span class="u">you</span><span class="at">@pigmentlab</span><span class="d">:~$</span> man pigment-settings</p>
         <h2>Settings</h2>
         <div class="prose">
-          <p>A typed switch and dropdown for each Sober config key: Discord presence, the join button, Feral GameMode,
-  OpenGL fallback, HiDPI scaling, server-location popup, close-on-leave, gamepad access, the console UI, plus
-  the graphics-optimization and touch-mode dropdowns.</p>
+          <p>A typed switch or dropdown for <b>every one of the 13 documented Sober config keys</b>: Discord presence,
+  the join button, Feral GameMode, OpenGL fallback, HiDPI scaling, server-location popup, close-on-leave,
+  gamepad access, the console UI, the mobile home screen, storing your login in the keyring
+  (<code class="inl">libsecret</code>, experimental), plus the graphics-optimization and touch-mode dropdowns.</p>
+          <p>Coverage is enforced by a test, so a key Sober adds upstream shows up as a failing build rather than a
+  silently missing switch.</p>
           <p>Change what you like and press <span class="kbd">Apply Changes</span>. Pigment reloads the file first, so
   keys it doesn’t manage — and any change Sober’s own settings made — are preserved. Restart Roblox to apply.</p>
         </div>
@@ -428,6 +436,10 @@ make install PREFIX=$HOME/.local">copy</button></div>
         <div class="prose">
           <h3 id="sober-is-not-installed">“Sober is not installed”</h3>
           <p>Install the Flatpak: <code class="inl">flatpak install flathub org.vinegarhq.Sober</code>, then relaunch Pigment.</p>
+          <h3 id="roblox-won-t-launch-or-rejects-the-client">Roblox won’t launch, or rejects the client</h3>
+          <p>Usually a stale Sober build. The version number stays <code class="inl">1.7.1</code> across refreshes, so
+  <i>check the build date on Home, not the version</i> — if Pigment shows the update banner, run
+  <code class="inl">flatpak update org.vinegarhq.Sober</code> and try again.</p>
           <h3 id="settings-fastflags-say-there-s-no-config">Settings/FastFlags say there’s no config</h3>
           <p>Launch Roblox through Sober once so it creates <code class="inl">config.json</code>, then reopen the page.</p>
           <h3 id="the-default-launcher-switch-doesn-t-stick">The default-launcher switch doesn’t stick</h3>

@@ -1,15 +1,3 @@
-//! `pigment-launch` — the latency-critical protocol-handler entry point.
-//!
-//! Registered as the handler for `roblox:`/`roblox-player:` URIs (opt-in, via the
-//! GUI). When the browser's "Play" button fires, this binary:
-//!
-//! 1. applies the active Pigment profile onto Sober (settings, FastFlags, mods),
-//! 2. hands the URI to Sober to launch the game.
-//!
-//! It links no GUI toolkit, so there is no window-system startup cost on this hot
-//! path. Its cardinal rule is **never strand the player**: if applying the
-//! profile fails for any reason, it logs the problem and launches Sober anyway.
-
 use std::process::ExitCode;
 
 use pigment_core::{ProfileStore, Sober};
@@ -22,7 +10,7 @@ fn main() -> ExitCode {
         return ExitCode::FAILURE;
     };
 
-    // Best-effort profile application. Failures here must not block the launch.
+    // Best effort profile application. Failures here must not block the launch.
     apply_active_profile(&sober);
 
     // Hand off to Sober. This is the step that must succeed.
@@ -35,8 +23,6 @@ fn main() -> ExitCode {
     }
 }
 
-/// Apply the active profile if there is one. Purely best-effort: every failure is
-/// logged and swallowed so the subsequent launch still happens.
 fn apply_active_profile(sober: &Sober) {
     let Some(store) = ProfileStore::discover() else {
         return;

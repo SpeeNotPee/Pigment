@@ -1,4 +1,4 @@
-//! Window assembly and shared UI helpers.
+// I am unsure about how this goes but whatever
 
 mod about;
 mod activity;
@@ -11,7 +11,7 @@ mod settings;
 use adw::prelude::*;
 use gtk::glib;
 
-/// A navigable page: a sidebar entry and the widget it reveals.
+/// page
 struct Page {
     id: &'static str,
     title: &'static str,
@@ -35,7 +35,7 @@ fn pages() -> Vec<Page> {
 pub fn build_window(app: &adw::Application) -> adw::ApplicationWindow {
     let pages = pages();
 
-    // Content side: a header + a stack of pages, swapped by the sidebar.
+    // content side
     let stack = gtk::Stack::builder()
         .transition_type(gtk::StackTransitionType::Crossfade)
         .build();
@@ -47,8 +47,6 @@ pub fn build_window(app: &adw::Application) -> adw::ApplicationWindow {
     let content_header = adw::HeaderBar::new();
     let content_title = adw::WindowTitle::new("Pigment", "");
     content_header.set_title_widget(Some(&content_title));
-    // Primary menu (feedback, docs, about). Wired to actions once the window
-    // exists, below.
     let menu = about::menu_button();
     content_header.pack_end(&menu);
 
@@ -61,7 +59,7 @@ pub fn build_window(app: &adw::Application) -> adw::ApplicationWindow {
         .child(&content_view)
         .build();
 
-    // Sidebar: a selectable list of page rows.
+    // sidebar
     let list = gtk::ListBox::builder()
         .selection_mode(gtk::SelectionMode::Single)
         .css_classes(["navigation-sidebar"])
@@ -88,7 +86,7 @@ pub fn build_window(app: &adw::Application) -> adw::ApplicationWindow {
         .max_sidebar_width(240.0)
         .build();
 
-    // Selecting a sidebar row swaps the content stack and updates the title.
+    // selecting a sidebar row swaps the content stack and updates the title.
     {
         let stack = stack.clone();
         let ids: Vec<&'static str> = pages.iter().map(|p| p.id).collect();
@@ -103,8 +101,7 @@ pub fn build_window(app: &adw::Application) -> adw::ApplicationWindow {
             }
         });
     }
-    // Start on Home, unless PIGMENT_START_PAGE names another page (a testing
-    // hook that lets screenshots target a specific page).
+    // Start on Home, unless PIGMENT_START_PAGE names another page
     let start_index = std::env::var("PIGMENT_START_PAGE")
         .ok()
         .and_then(|want| pages.iter().position(|p| p.id == want))
@@ -122,8 +119,7 @@ pub fn build_window(app: &adw::Application) -> adw::ApplicationWindow {
         .build();
     about::install_menu(&window, &menu);
 
-    // Testing hook: open the About window shortly after startup (once the main
-    // window is presented) for screenshots.
+    // Testing hook
     if std::env::var_os("PIGMENT_SHOW_ABOUT").is_some() {
         let window = window.clone();
         glib::timeout_add_local_once(std::time::Duration::from_millis(400), move || {
@@ -133,7 +129,7 @@ pub fn build_window(app: &adw::Application) -> adw::ApplicationWindow {
     window
 }
 
-/// A sidebar row: icon + label.
+/// sidebar row
 fn sidebar_row(icon: &str, title: &str) -> gtk::ListBoxRow {
     let box_ = gtk::Box::builder()
         .orientation(gtk::Orientation::Horizontal)
@@ -148,7 +144,7 @@ fn sidebar_row(icon: &str, title: &str) -> gtk::ListBoxRow {
     gtk::ListBoxRow::builder().child(&box_).build()
 }
 
-/// Standard vertical scroller wrapper for a page's content.
+/// vertical scroller wrapper shit
 pub(crate) fn scrolled(child: &impl IsA<gtk::Widget>) -> gtk::ScrolledWindow {
     gtk::ScrolledWindow::builder()
         .hscrollbar_policy(gtk::PolicyType::Never)
@@ -157,26 +153,18 @@ pub(crate) fn scrolled(child: &impl IsA<gtk::Widget>) -> gtk::ScrolledWindow {
         .build()
 }
 
-/// Show a transient toast-like message via a simple message dialog is overkill;
-/// callers use this to log to stderr until a toast overlay is wired in.
+// even more shit bro
 pub(crate) fn note(msg: &str) {
     glib::g_message!("pigment", "{msg}");
 }
 
-/// Absolute path to the sibling `pigment-launch` binary — the protocol handler.
-///
-/// It lives beside the running `pigment` binary in every layout we ship (dev
-/// `target/…`, or `/usr/bin` when packaged), so we derive it from the current
-/// executable rather than hard-coding a path.
+// holy fuck I'm tired
 pub(crate) fn launch_binary_path() -> Option<std::path::PathBuf> {
     let exe = std::env::current_exe().ok()?;
     Some(exe.with_file_name("pigment-launch"))
 }
 
-/// Snapshot the current Sober config into a new profile: every top-level config
-/// key becomes a forced setting, and the current fflag map is captured. Shared by
-/// the Profiles page ("save current setup") and the Mods page (auto-creating a
-/// default profile when the first mod is enabled).
+/// Theres a Negev on site on B -ohnepixel
 pub(crate) fn snapshot_profile(
     name: &str,
     sober: &pigment_core::Sober,

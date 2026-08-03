@@ -1,17 +1,4 @@
-//! Profiles: named bundles of Sober settings, FastFlags, and enabled mods.
-//!
-//! Sober has exactly one config and one overlay, so profiles are applied
-//! *sequentially* — switching profile re-applies its state onto Sober. This is
-//! the deliberate alternative to simultaneous multi-instance (which Sober refuses
-//! and which invites bans); a user keeps main/alt/testing setups and swaps
-//! between them.
-//!
-//! [`ProfileStore::apply`] is where the pieces meet: it writes the profile's
-//! settings and flags into Sober's config through the safe [`crate::Config`]
-//! writer, and composes the profile's mods into the overlay via
-//! [`crate::mods`]. Applying is best-effort about mods (a missing mod is
-//! reported, not fatal) but strict about the config write.
-
+//profiles, lowk dont need to explain ts one prob
 use std::fs;
 use std::io;
 use std::path::PathBuf;
@@ -23,12 +10,7 @@ use crate::config::{Config, ConfigError};
 use crate::mods::{self, ComposeReport, ModSource};
 use crate::paths::{PigmentPaths, SoberPaths};
 
-/// A named configuration bundle.
-///
-/// `settings` are Sober config keys to force (a subset — unlisted keys keep their
-/// current on-disk value). `fflags` fully defines the profile's FastFlag set.
-/// `mods` names entries in the mod library, in overlay precedence order (later
-/// wins).
+/// a named configuration bundle.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Profile {
     pub name: String,
@@ -41,7 +23,6 @@ pub struct Profile {
 }
 
 impl Profile {
-    /// A new, empty profile with the given name.
     pub fn new(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
@@ -55,9 +36,7 @@ impl Profile {
 /// The outcome of applying a profile.
 #[derive(Debug, Clone, Default)]
 pub struct ApplyReport {
-    /// Files written into the overlay, and which mod won each.
     pub overlay: ComposeReport,
-    /// Names in `profile.mods` with no matching directory in the mod library.
     pub missing_mods: Vec<String>,
 }
 
@@ -78,7 +57,6 @@ pub enum ProfileError {
     NotFound(String),
 }
 
-/// Reads and writes profiles under [`PigmentPaths`], and applies them onto Sober.
 #[derive(Debug, Clone)]
 pub struct ProfileStore {
     paths: PigmentPaths,
@@ -168,7 +146,6 @@ impl ProfileStore {
         self.profile_file(&name).exists().then_some(name)
     }
 
-    /// Set (or clear, with `None`) the active profile.
     pub fn set_active(&self, name: Option<&str>) -> Result<(), ProfileError> {
         let path = self.paths.state_file();
         let state = State {
@@ -185,19 +162,11 @@ impl ProfileStore {
         root.is_dir().then(|| ModSource::new(name, root))
     }
 
-    /// Apply a profile onto Sober: write its settings and flags into the config
-    /// (safely, preserving unknown keys), and compose its mods into the overlay.
-    ///
-    /// The Sober config must already exist (Sober creates it on first launch);
-    /// otherwise this returns a [`ConfigError`]. Mods that don't resolve are
-    /// collected in [`ApplyReport::missing_mods`] rather than aborting.
     pub fn apply(
         &self,
         profile: &Profile,
         sober: &SoberPaths,
     ) -> Result<ApplyReport, ProfileError> {
-        // 1. Config: load fresh (preserves keys we don't manage), overlay the
-        //    profile's settings, replace the fflag set, save atomically.
         let mut config = Config::load(sober.config_file())?;
         for (k, v) in &profile.settings {
             config.set(k.clone(), v.clone());
@@ -227,7 +196,6 @@ impl ProfileStore {
     }
 }
 
-/// The on-disk cross-cutting state file (`state.json`).
 #[derive(Debug, Default, Serialize, Deserialize)]
 struct State {
     #[serde(default)]
@@ -245,8 +213,6 @@ mod tests {
         (dir, store)
     }
 
-    /// Write a minimal valid Sober config into a temp Sober tree; return its
-    /// SoberPaths.
     fn fake_sober(home: &std::path::Path) -> SoberPaths {
         let sober = SoberPaths::from_home(home);
         let cfg = sober.config_file();

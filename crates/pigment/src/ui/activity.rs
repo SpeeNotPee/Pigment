@@ -1,13 +1,4 @@
-//! Activity page: recent games from Sober's logs, and Discord Rich Presence.
-//!
-//! Sessions are parsed from the log and listed newest-first. Game names are
-//! resolved from universe ids on a background thread and streamed into the rows
-//! via an async channel, so the network never blocks the UI.
-//!
-//! The Discord toggle starts a background thread that watches the log and drives
-//! Rich Presence for as long as Pigment is open. Discord already ships its own
-//! presence in Sober, so this is opt-in and richer (resolved name + elapsed
-//! time); a user enables one or the other.
+/// I dont think discord works works tbh
 
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -18,15 +9,13 @@ use std::time::Duration;
 use adw::prelude::*;
 use pigment_core::{activity, discord, roblox_api, Sober, Status};
 
-/// Discord application id for the Pigment Rich Presence app. Presence shows the
-/// app name and (once assets are uploaded to the app) its icon; requires Discord
-/// to be running, otherwise the toggle reports it cannot connect.
+/// I'm 99% this shit cannot be hjacked but I could always be wrong idk
 const DISCORD_CLIENT_ID: &str = "1526262789927075950";
 
 /// Newest N sessions to show.
 const MAX_SESSIONS: usize = 20;
 
-/// Build the Activity page.
+/// activity page
 pub fn build() -> gtk::Widget {
     let Some(sober) = Sober::discover() else {
         return error_page("Could not determine your home directory.");
@@ -48,7 +37,7 @@ pub fn build() -> gtk::Widget {
     super::scrolled(&page).upcast()
 }
 
-/// The Discord Rich Presence toggle and its background presence thread.
+/// thank you daddy claude
 fn discord_group(log_path: &std::path::Path) -> adw::PreferencesGroup {
     let group = adw::PreferencesGroup::builder()
         .title("Discord Rich Presence")
@@ -61,7 +50,7 @@ fn discord_group(log_path: &std::path::Path) -> adw::PreferencesGroup {
         .build();
     group.add(&row);
 
-    // Status messages from the presence thread update the row subtitle.
+    // I actually dont know what this does but during testing, it keeps breaking whenever I delete so I lowk keep it there
     let (status_tx, status_rx) = async_channel::unbounded::<String>();
     {
         let row = row.clone();
@@ -72,12 +61,11 @@ fn discord_group(log_path: &std::path::Path) -> adw::PreferencesGroup {
         });
     }
 
-    // Holds the current thread's stop flag so toggling off can end it.
+    // yo I genuinely dont know what tf is, I pray to whoever tries to understand this
     let running: Rc<std::cell::RefCell<Option<Arc<AtomicBool>>>> =
         Rc::new(std::cell::RefCell::new(None));
     let log_path = log_path.to_path_buf();
     row.connect_active_notify(move |row| {
-        // Stop any existing presence thread.
         if let Some(flag) = running.borrow_mut().take() {
             flag.store(false, Ordering::Relaxed);
         }
@@ -94,7 +82,7 @@ fn discord_group(log_path: &std::path::Path) -> adw::PreferencesGroup {
     group
 }
 
-/// The presence loop: connect to Discord, then track the log until stopped.
+/// presence loop
 fn presence_loop(
     log_path: std::path::PathBuf,
     running: Arc<AtomicBool>,
@@ -112,7 +100,7 @@ fn presence_loop(
     };
 
     let mut names: HashMap<u64, String> = HashMap::new();
-    let mut current: Option<u64> = None; // place id currently shown
+    let mut current: Option<u64> = None; // game id
 
     while running.load(Ordering::Relaxed) {
         let text = std::fs::read_to_string(&log_path).unwrap_or_default();
@@ -136,7 +124,7 @@ fn presence_loop(
             }
             _ => {}
         }
-        // Sleep ~10s, but wake promptly when stopped.
+        // Sleep in ~10s, but wake when stopped.
         for _ in 0..10 {
             if !running.load(Ordering::Relaxed) {
                 break;
@@ -147,7 +135,7 @@ fn presence_loop(
     let _ = client.clear_activity();
 }
 
-/// Resolve (and cache) a universe id to a game name.
+/// Resolve a universe id to a game name (Roblox discord dev forums)
 fn resolve_name(cache: &mut HashMap<u64, String>, universe_id: Option<u64>) -> Option<String> {
     let uid = universe_id?;
     if let Some(name) = cache.get(&uid) {
@@ -158,7 +146,7 @@ fn resolve_name(cache: &mut HashMap<u64, String>, universe_id: Option<u64>) -> O
     (!name.is_empty()).then_some(name)
 }
 
-/// The list of recent game sessions, with names filled in asynchronously.
+/// list of recent game session, I think chronological order is borken tho.
 fn recent_games_group(log_path: &std::path::Path) -> adw::PreferencesGroup {
     let group = adw::PreferencesGroup::builder().title("Recent Games").build();
 
@@ -174,7 +162,6 @@ fn recent_games_group(log_path: &std::path::Path) -> adw::PreferencesGroup {
         return group;
     }
 
-    // Build rows now; resolve names on a worker thread and stream them in.
     let mut rows = Vec::new();
     let mut jobs = Vec::new();
     for (i, s) in sessions.iter().enumerate() {
@@ -214,9 +201,7 @@ fn recent_games_group(log_path: &std::path::Path) -> adw::PreferencesGroup {
     group
 }
 
-/// The newest sessions across all log files in the log directory (Sober writes a
-/// new log per launch), so "Recent Games" spans launches rather than only the
-/// current session.
+/// newest session so "ecent games spans launches rather than only the current session
 fn recent_sessions(latest_log: &std::path::Path) -> Vec<pigment_core::Session> {
     let Some(dir) = latest_log.parent() else {
         return Vec::new();
@@ -233,14 +218,13 @@ fn recent_sessions(latest_log: &std::path::Path) -> Vec<pigment_core::Session> {
             }
         }
     }
-    // Newest first; sessions with no timestamp sort to the end (the leading
-    // `is_none` groups them last, then Reverse orders the rest newest-first).
+
     all.sort_by_key(|s| (s.joined_at.is_none(), std::cmp::Reverse(s.joined_at)));
     all.truncate(MAX_SESSIONS);
     all
 }
 
-/// A one-line description: when it was played and how long.
+/// session duration
 fn describe_session(s: &pigment_core::Session) -> String {
     let when = s
         .joined_at

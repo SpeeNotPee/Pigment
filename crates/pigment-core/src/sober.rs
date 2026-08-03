@@ -1,23 +1,39 @@
-//! Discovering and launching the Sober Flatpak.
-//!
-//! Pigment never bundles or reimplements Sober; it shells out to `flatpak`.
-//! Command construction ([`LaunchSpec`], [`Sober::launch_spec`]) is kept pure and
-//! separate from execution so it can be unit-tested without a Flatpak install,
-//! and so `pigment-launch` can build the exact argv it will exec on the hot path.
-
 use std::path::PathBuf;
 use std::process::Command;
 
 use crate::paths::{SoberPaths, SOBER_APP_ID};
 
-/// The Flatpak CLI binary. Absolute path avoids `$PATH` surprises when launched
-/// from a desktop-file handler with a minimal environment.
 const FLATPAK_BIN: &str = "flatpak";
 
-/// A fully-resolved launch command: the program plus its arguments.
-///
-/// Pure data — building one runs nothing. Convert to a [`Command`] with
-/// [`LaunchSpec::to_command`] when ready to execute.
+const DEFAULT_REMOTE: &str = "flathub";
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct BuildInfo {
+    pub version: Option<String>,
+    pub commit: Option<String>,
+    pub build: Option<String>,
+    pub date: Option<String>,
+    pub origin: Option<String>,
+}
+
+impl BuildInfo {
+    pub fn label(&self) -> Option<String> {
+        let version = self.version.as_deref()?;
+        match self.build_date() {
+            Some(d) => Some(format!("{version} (build {d})")),
+            None => Some(version.to_string()),
+        }
+    }
+
+    pub fn build_date(&self) -> Option<&str> {
+        self.build
+            .as_deref()
+            .and_then(|b| b.split('_').next())
+            .or(self.date.as_deref())
+    }
+}
+
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LaunchSpec {
     pub program: String,
@@ -32,7 +48,7 @@ impl LaunchSpec {
         cmd
     }
 
-    /// The full argv as a single shell-ish string, for logging/debugging only.
+    /// The full argv as a single shell ish string, for logging/debugging only.
     pub fn display(&self) -> String {
         let mut s = self.program.clone();
         for a in &self.args {
@@ -47,11 +63,7 @@ impl LaunchSpec {
 #[derive(Debug, Clone)]
 pub struct Sober {
     paths: SoberPaths,
-    /// The `flatpak` binary to invoke (overridable in tests).
     flatpak_bin: String,
-    /// Whether Pigment itself is sandboxed, so host `flatpak` calls must be
-    /// wrapped in `flatpak-spawn --host`.
-    sandboxed: bool,
 }
 
 impl Sober {
@@ -60,23 +72,6 @@ impl Sober {
         Self {
             paths,
             flatpak_bin: FLATPAK_BIN.to_string(),
-            sandboxed: crate::util::in_flatpak(),
-        }
-    }
-
-    /// The program and leading args that invoke `flatpak` on the host.
-    ///
-    /// Native: just `flatpak`. Sandboxed: `flatpak-spawn --host flatpak`, so the
-    /// call escapes Pigment's own sandbox and reaches the host's Flatpak install
-    /// (the same one that holds Sober).
-    fn host_flatpak(&self) -> (String, Vec<String>) {
-        if self.sandboxed {
-            (
-                "flatpak-spawn".to_string(),
-                vec!["--host".to_string(), self.flatpak_bin.clone()],
-            )
-        } else {
-            (self.flatpak_bin.clone(), Vec::new())
         }
     }
 
@@ -90,85 +85,145 @@ impl Sober {
         &self.paths
     }
 
-    /// Build the command that launches Sober, optionally into a deep-link URI.
-    ///
-    /// `flatpak run org.vinegarhq.Sober [uri]`. Sober takes the `roblox:`/
-    /// `roblox-player:` URI as its first positional argument (this is what the
-    /// registered protocol handler forwards). With no URI, Sober opens its home
-    /// screen.
+    /// Build the command that launches Sober, optionally into a deep link URI.
     pub fn launch_spec(&self, uri: Option<&str>) -> LaunchSpec {
-        let (program, mut args) = self.host_flatpak();
-        args.push("run".to_string());
-        args.push(SOBER_APP_ID.to_string());
+        let mut args = vec!["run".to_string(), SOBER_APP_ID.to_string()];
         if let Some(uri) = uri {
             args.push(uri.to_string());
         }
-        LaunchSpec { program, args }
+        LaunchSpec {
+            program: self.flatpak_bin.clone(),
+            args,
+        }
     }
 
-    /// Build the command that opens Sober's own settings dialog.
+    /// Build the command that opens Sober own settings dialog.
     pub fn settings_spec(&self) -> LaunchSpec {
-        let (program, mut args) = self.host_flatpak();
-        args.extend([
-            "run".to_string(),
-            "--command=sober".to_string(),
-            SOBER_APP_ID.to_string(),
-            "config".to_string(),
-        ]);
-        LaunchSpec { program, args }
+        LaunchSpec {
+            program: self.flatpak_bin.clone(),
+            args: vec![
+                "run".to_string(),
+                "--command=sober".to_string(),
+                SOBER_APP_ID.to_string(),
+                "config".to_string(),
+            ],
+        }
     }
 
-    /// Spawn Sober, optionally into a deep-link URI. Returns immediately with the
-    /// child handle; does not wait for Roblox to exit.
     pub fn launch(&self, uri: Option<&str>) -> std::io::Result<std::process::Child> {
         self.launch_spec(uri).to_command().spawn()
     }
 
     /// Whether the Sober Flatpak is installed, by asking `flatpak info`.
-    ///
-    /// Returns `false` if `flatpak` itself is missing.
     pub fn is_installed(&self) -> bool {
-        let (program, mut args) = self.host_flatpak();
-        args.extend(["info".to_string(), SOBER_APP_ID.to_string()]);
-        Command::new(program)
-            .args(args)
-            .output()
-            .map(|o| o.status.success())
-            .unwrap_or(false)
+        self.flatpak_output(&["info", SOBER_APP_ID]).is_some()
     }
 
-    /// The installed Sober version (e.g. `"1.7.1"`), or `None` if not installed
-    /// or unparseable.
+    fn flatpak_output(&self, extra: &[&str]) -> Option<String> {
+        let out = Command::new(&self.flatpak_bin).args(extra).output().ok()?;
+        out.status
+            .success()
+            .then(|| String::from_utf8_lossy(&out.stdout).into_owned())
+    }
+
     pub fn installed_version(&self) -> Option<String> {
-        let (program, mut args) = self.host_flatpak();
-        args.extend(["info".to_string(), SOBER_APP_ID.to_string()]);
-        let out = Command::new(program).args(args).output().ok()?;
-        if !out.status.success() {
-            return None;
-        }
-        parse_version(&String::from_utf8_lossy(&out.stdout))
+        self.installed_build()?.version
     }
 
-    /// Whether Sober has been launched at least once, inferred from the config
-    /// existing. Callers use this to decide whether editing the config is safe
-    /// (Sober regenerates it on first launch).
+    /// [`Sober::is_installed`] and [`Sober::installed_version`] separately.
+    pub fn installed_build(&self) -> Option<BuildInfo> {
+        Some(parse_build(&self.flatpak_output(&["info", SOBER_APP_ID])?))
+    }
+
+    /// Build details for the newest Sober published on its remote.
+    pub fn latest_build(&self) -> Option<BuildInfo> {
+        let origin = self
+            .installed_build()
+            .and_then(|b| b.origin)
+            .unwrap_or_else(|| DEFAULT_REMOTE.to_string());
+        Some(parse_build(&self.flatpak_output(&[
+            "remote-info",
+            &origin,
+            SOBER_APP_ID,
+        ])?))
+    }
+
+    /// The newer build available on the remote, or `None` if Sober is current
+    pub fn update_available(&self) -> Option<BuildInfo> {
+        let installed = self.installed_build()?.commit?;
+        let latest = self.latest_build()?;
+        (latest.commit.as_deref()? != installed).then_some(latest)
+    }
+
+    pub fn roblox_version(&self) -> Option<String> {
+        let text = std::fs::read_to_string(self.paths.state_file()).ok()?;
+        parse_roblox_version(&text)
+    }
+
     pub fn has_config(&self) -> bool {
         self.paths.config_file().exists()
     }
 
-    /// The config file path (convenience re-export).
     pub fn config_file(&self) -> PathBuf {
         self.paths.config_file()
     }
 }
 
-/// Extract the `Version:` field from `flatpak info` output.
-fn parse_version(info: &str) -> Option<String> {
+
+fn parse_field(info: &str, field: &str) -> Option<String> {
+    let prefix = format!("{field}:");
     info.lines()
         .map(str::trim_start)
-        .find_map(|line| line.strip_prefix("Version:"))
+        .find_map(|line| line.strip_prefix(&prefix))
         .map(|v| v.trim().to_string())
         .filter(|v| !v.is_empty())
+}
+
+fn parse_version(info: &str) -> Option<String> {
+    parse_field(info, "Version")
+}
+
+/// Parse the fields Pigment tracks out of `flatpak info` / `remote-info` output.
+fn parse_build(info: &str) -> BuildInfo {
+    BuildInfo {
+        version: parse_version(info),
+        commit: parse_field(info, "Commit"),
+        build: parse_field(info, "Subject").as_deref().and_then(parse_build_tag),
+        // `Date: 2026-07-28 00:04:56 +0000` — keep the day, drop the clock.
+        date: parse_field(info, "Date").map(|d| {
+            d.split_whitespace()
+                .next()
+                .unwrap_or(d.as_str())
+                .to_string()
+        }),
+        origin: parse_field(info, "Origin"),
+    }
+}
+
+fn parse_build_tag(subject: &str) -> Option<String> {
+    subject
+        .split_whitespace()
+        .find(|token| {
+            let Some((date, hash)) = token.split_once('_') else {
+                return false;
+            };
+            let d: Vec<&str> = date.split('-').collect();
+            d.len() == 3
+                && d.iter().all(|p| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit()))
+                && !hash.is_empty()
+                && hash.bytes().all(|b| b.is_ascii_hexdigit())
+        })
+        .map(str::to_string)
+}
+
+/// Read `v1.app_version` — the Roblox client version — from Sober's state file.
+fn parse_roblox_version(state_json: &str) -> Option<String> {
+    let root: serde_json::Value = serde_json::from_str(state_json).ok()?;
+    root.get("v1")?
+        .get("app_version")?
+        .as_str()
+        .filter(|v| !v.is_empty())
+        .map(str::to_string)
 }
 
 #[cfg(test)]
@@ -196,28 +251,6 @@ mod tests {
     }
 
     #[test]
-    fn sandboxed_launch_routes_through_flatpak_spawn_host() {
-        let mut s = sober();
-        s.sandboxed = true;
-        let spec = s.launch_spec(Some("roblox://placeId=1"));
-        assert_eq!(spec.program, "flatpak-spawn");
-        assert_eq!(
-            spec.args,
-            vec![
-                "--host",
-                "flatpak",
-                "run",
-                "org.vinegarhq.Sober",
-                "roblox://placeId=1"
-            ]
-        );
-        // Settings routes through the host too.
-        let mut s2 = sober();
-        s2.sandboxed = true;
-        assert_eq!(s2.settings_spec().program, "flatpak-spawn");
-    }
-
-    #[test]
     fn settings_spec_targets_sober_config_subcommand() {
         let spec = sober().settings_spec();
         assert_eq!(
@@ -226,10 +259,7 @@ mod tests {
         );
     }
 
-    #[test]
-    fn parses_version_from_real_flatpak_info() {
-        // Captured verbatim from `flatpak info org.vinegarhq.Sober` on 1.7.1.
-        let sample = "\n\
+    const INFO_SAMPLE: &str = "\n\
 Sober - Play, chat & explore on Roblox\n\
 \n\
             ID: org.vinegarhq.Sober\n\
@@ -238,13 +268,84 @@ Sober - Play, chat & explore on Roblox\n\
         Branch: stable\n\
        Version: 1.7.1\n\
        License: LicenseRef-proprietary\n\
-Installed Size: 17.8 MB\n";
-        assert_eq!(parse_version(sample).as_deref(), Some("1.7.1"));
+        Origin: flathub\n\
+    Collection: org.flathub.Stable\n\
+Installed Size: 18.0 MB\n\
+\n\
+        Commit: 3f0141ef9c95ff47a08a1437d5b328bd8a6cdf749de592b06579dd5f3fcf948b\n\
+        Parent: 2b9e6dd4af698d1c3950f8d8eb2823168eb25b8c1d5de9e3ae5ff0767ae53667\n\
+       Subject: Update Sober to 2026-07-21_feffe25 (1.7.1 refresh) (9e07049f9e9c)\n\
+          Date: 2026-07-22 01:28:52 +0000\n";
+
+    #[test]
+    fn parses_version_from_real_flatpak_info() {
+        assert_eq!(parse_version(INFO_SAMPLE).as_deref(), Some("1.7.1"));
     }
 
     #[test]
     fn version_absent_yields_none() {
         assert_eq!(parse_version("ID: org.vinegarhq.Sober\nArch: x86_64\n"), None);
+    }
+
+    #[test]
+    fn parses_full_build_from_real_flatpak_info() {
+        let b = parse_build(INFO_SAMPLE);
+        assert_eq!(b.version.as_deref(), Some("1.7.1"));
+        assert_eq!(b.origin.as_deref(), Some("flathub"));
+        assert_eq!(
+            b.commit.as_deref(),
+            Some("3f0141ef9c95ff47a08a1437d5b328bd8a6cdf749de592b06579dd5f3fcf948b")
+        );
+        assert_eq!(b.build.as_deref(), Some("2026-07-21_feffe25"));
+        // The clock time is dropped; only the day is kept.
+        assert_eq!(b.date.as_deref(), Some("2026-07-22"));
+        assert_eq!(b.label().as_deref(), Some("1.7.1 (build 2026-07-21)"));
+    }
+
+    #[test]
+    fn build_label_falls_back_when_subject_has_no_tag() {
+        // A refresh whose subject doesn't follow the `<date>_<hash>` convention
+        // still reports the version, dated by the commit.
+        let b = BuildInfo {
+            version: Some("1.7.1".into()),
+            date: Some("2026-07-28".into()),
+            ..Default::default()
+        };
+        assert_eq!(b.label().as_deref(), Some("1.7.1 (build 2026-07-28)"));
+
+        // With nothing but a version, the label is just the version.
+        let bare = BuildInfo {
+            version: Some("1.7.1".into()),
+            ..Default::default()
+        };
+        assert_eq!(bare.label().as_deref(), Some("1.7.1"));
+        assert_eq!(BuildInfo::default().label(), None);
+    }
+
+    #[test]
+    fn build_tag_is_only_taken_from_a_dated_hash_token() {
+        assert_eq!(
+            parse_build_tag("Update Sober to 2026-07-28_a4ebce8 (1.7.1 refresh)").as_deref(),
+            Some("2026-07-28_a4ebce8")
+        );
+        assert_eq!(parse_build_tag("Initial commit"), None);
+        assert_eq!(parse_build_tag("Update Sober to 1.7.1"), None);
+        // Not a hash, so not a build tag.
+        assert_eq!(parse_build_tag("bump 2026-07-28_release"), None);
+    }
+
+    #[test]
+    fn parses_roblox_version_from_real_state_file() {
+        // Trimmed from the live `data/sober/state`.
+        let state = r#"{
+    "v1": { "app_version": "2.729.839", "fullscreen": false },
+    "v2": { "has_seen_onboarding": false }
+}"#;
+        assert_eq!(parse_roblox_version(state).as_deref(), Some("2.729.839"));
+        // Absent, empty, and malformed states are all "unknown", never a panic.
+        assert_eq!(parse_roblox_version(r#"{"v2": {}}"#), None);
+        assert_eq!(parse_roblox_version(r#"{"v1": {"app_version": ""}}"#), None);
+        assert_eq!(parse_roblox_version("not json"), None);
     }
 
     #[test]

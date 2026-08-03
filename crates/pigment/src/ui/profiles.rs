@@ -1,12 +1,4 @@
-//! Profiles page: create, activate, apply, and delete profiles.
-//!
-//! A profile is a named snapshot of Sober settings + FastFlags (+ mods, assigned
-//! on the Mods page). The *active* profile is what `pigment-launch` applies each
-//! time you launch. "Apply now" writes a profile onto Sober immediately.
-//!
-//! The list refreshes in place after every action via the free [`populate`]
-//! function, which re-invokes itself from button callbacks — clean recursion,
-//! no `Rc`-cycle gymnastics.
+//self explanatory, just profiles
 
 use std::rc::Rc;
 
@@ -37,14 +29,14 @@ pub fn build() -> gtk::Widget {
         .build();
     let status = Rc::new(status);
 
-    // The profile list.
+    //profile list
     let list = gtk::ListBox::builder()
         .selection_mode(gtk::SelectionMode::None)
         .css_classes(["boxed-list"])
         .build();
     let list = Rc::new(list);
 
-    // Create-a-profile controls.
+    //profile control
     let name_entry = gtk::Entry::builder()
         .placeholder_text("New profile name")
         .hexpand(true)
@@ -104,7 +96,7 @@ pub fn build() -> gtk::Widget {
     super::scrolled(&page).upcast()
 }
 
-/// Rebuild the profile list rows to reflect current storage.
+///rebuild the profile list rows to reflect current storage.
 fn populate(
     list: &Rc<gtk::ListBox>,
     store: &Rc<ProfileStore>,
@@ -133,7 +125,7 @@ fn populate(
             row.add_prefix(&check);
         }
 
-        // Apply now.
+        //apply now
         let apply = icon_button("media-playback-start-symbolic", "Apply to Sober now");
         {
             let (store, sober, status, name) =
@@ -154,7 +146,7 @@ fn populate(
             });
         }
 
-        // Set active.
+        //set active
         let activate = icon_button("starred-symbolic", "Make active");
         activate.set_sensitive(!is_active);
         {
@@ -175,7 +167,7 @@ fn populate(
             });
         }
 
-        // Delete.
+        //del
         let delete = icon_button("user-trash-symbolic", "Delete profile");
         delete.add_css_class("destructive-action");
         {
@@ -209,7 +201,7 @@ fn populate(
     }
 }
 
-/// A flat, tooltipped icon button.
+/// icon button
 fn icon_button(icon: &str, tooltip: &str) -> gtk::Button {
     gtk::Button::builder()
         .icon_name(icon)

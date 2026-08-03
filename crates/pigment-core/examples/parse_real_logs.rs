@@ -1,6 +1,3 @@
-//! Parse every real Sober log on this machine and print the sessions found.
-//! Read-only. Usage: `cargo run -p pigment-core --example parse_real_logs`
-
 use pigment_core::{activity, SoberPaths};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

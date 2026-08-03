@@ -1,24 +1,4 @@
-//! Reading and safely rewriting Sober's `config.json`.
-//!
-//! This is the most safety-critical module in Pigment. Sober has a known
-//! crash-on-corrupt-config bug (vinegarhq/sober#1519): if this file is not valid
-//! JSON, Roblox will not launch at all. Two further hazards make a naive
-//! read/modify/write dangerous:
-//!
-//! 1. **It is JSONC, not JSON.** The live file opens with a `//` comment header.
-//!    A bare `serde_json` parse fails on it outright.
-//! 2. **Sober owns the schema and adds keys over time.** The live 1.7.1 file
-//!    already carries `enable_mobile_home_screen`, which is absent from the
-//!    published docs. Round-tripping through a typed struct would silently drop
-//!    any key Pigment doesn't know about.
-//!
-//! [`Config`] therefore models the file as an editable JSON *document* (an
-//! order-independent map of raw values) plus its comment preamble, rather than a
-//! fixed struct. Writes are atomic (temp file + `rename`) and are re-parsed for
-//! validity *before* the rename, so a bug in Pigment can never leave a
-//! half-written or malformed config in place. Every overwrite first snapshots the
-//! previous file so a launchable state can always be restored.
-
+// cnofi
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -61,32 +41,18 @@ pub enum ConfigError {
     NoBackup(PathBuf),
 }
 
-/// An in-memory, editable view of Sober's `config.json`.
-///
-/// Preserves the comment header and every key present on disk, known or not.
-/// Reserialized output matches Sober's own formatting (4-space indent,
-/// alphabetically sorted keys) to keep on-disk diffs minimal.
+// All in memmory
 #[derive(Debug, Clone)]
 pub struct Config {
-    /// The leading comment/blank lines before the `{`, verbatim (no trailing
-    /// newline). Empty if the source had no header.
     preamble: String,
-    /// The top-level object. Always a [`Value::Object`]; the type invariant is
-    /// established at construction.
     root: Value,
 }
 
 impl Config {
-    /// Parse a config from raw file text (JSONC).
-    ///
-    /// The comment header is captured for round-tripping; comments elsewhere are
-    /// ignored by the parser (and not preserved). Fails if the JSON body is
-    /// invalid or its root is not an object.
     pub fn parse(text: &str) -> Result<Self, ConfigError> {
         let preamble = extract_preamble(text);
 
-        // jsonc-parser understands strings, so a value like "http://x" is never
-        // mistaken for a comment — this is why we don't strip `//` by regex.
+        // jsonc parser understands strings
         let root = jsonc_parser::parse_to_serde_value::<Value>(text, &Default::default())
             .map_err(|e| ConfigError::Parse(e.to_string()))?;
 
@@ -95,13 +61,6 @@ impl Config {
         }
         Ok(Self { preamble, root })
     }
-
-    /// Load and parse the config at `path`.
-    ///
-    /// A missing file is a [`ConfigError::Read`]; Pigment treats "Sober has never
-    /// been launched" as a caller-handled condition rather than fabricating a
-    /// default (we do not authoritatively know Sober's full defaults, and Sober
-    /// regenerates the file itself on first launch).
     pub fn load(path: impl AsRef<Path>) -> Result<Self, ConfigError> {
         let path = path.as_ref();
         let text = fs::read_to_string(path).map_err(|source| ConfigError::Read {
@@ -111,70 +70,54 @@ impl Config {
         Self::parse(&text)
     }
 
-    /// Borrow the top-level object map.
     fn object(&self) -> &serde_json::Map<String, Value> {
         // Invariant established in `parse`.
         self.root.as_object().expect("root is always an object")
     }
 
-    /// Mutably borrow the top-level object map.
     fn object_mut(&mut self) -> &mut serde_json::Map<String, Value> {
         self.root.as_object_mut().expect("root is always an object")
     }
 
-    /// Get a raw value by key.
     pub fn get(&self, key: &str) -> Option<&Value> {
         self.object().get(key)
     }
 
-    /// Set a key to any JSON value, replacing an existing one.
     pub fn set(&mut self, key: impl Into<String>, value: impl Into<Value>) {
         self.object_mut().insert(key.into(), value.into());
     }
 
-    /// Remove a key, returning its previous value if present.
     pub fn remove(&mut self, key: &str) -> Option<Value> {
         self.object_mut().remove(key)
     }
 
-    /// Read a boolean setting, if present and boolean-typed.
     pub fn get_bool(&self, key: &str) -> Option<bool> {
         self.get(key).and_then(Value::as_bool)
     }
 
-    /// Set a boolean setting.
     pub fn set_bool(&mut self, key: impl Into<String>, value: bool) {
         self.set(key, value);
     }
 
     /// Replace the entire `fflags` map.
-    ///
-    /// Sober stores FastFlags as a plain string→value object, the same shape
-    /// Bloxstrap uses, so presets copy across directly.
     pub fn set_fflags(&mut self, flags: serde_json::Map<String, Value>) {
         self.set("fflags", Value::Object(flags));
     }
 
-    /// Borrow the `fflags` map, if present and object-typed.
     pub fn fflags(&self) -> Option<&serde_json::Map<String, Value>> {
         self.get("fflags").and_then(Value::as_object)
     }
 
-    /// All top-level keys currently in the document, in sorted order.
     pub fn keys(&self) -> impl Iterator<Item = &str> {
         self.object().keys().map(String::as_str)
     }
 
-    /// Serialize to Sober's on-disk format: preserved comment header, then the
-    /// object pretty-printed with 4-space indent and sorted keys, then a
-    /// trailing newline.
+    ///preserved comment header, then the object pretty-printed with 4-space indent and sorted keys, then a trailing newline.
     pub fn to_pretty_string(&self) -> String {
         let mut buf = Vec::new();
-        // 4-space indent matches Sober; serde_json's default is 2.
+        // 4 space indent matches Sober; serde_json default is 2.
         let formatter = serde_json::ser::PrettyFormatter::with_indent(b"    ");
         let mut ser = serde_json::Serializer::with_formatter(&mut buf, formatter);
-        // Value's Map is BTreeMap-backed, so keys serialize alphabetically —
-        // matching Sober's own output and keeping diffs minimal.
         self.root
             .serialize(&mut ser)
             .expect("serializing a Value to a Vec cannot fail");
@@ -190,19 +133,17 @@ impl Config {
         out
     }
 
-    /// Atomically write the config to `path`, backing up any existing file first.
-    ///
+    /// Atomically write the config to path, backing up any existing file first.
     /// Sequence, chosen so no failure can leave Sober with an unlaunchable file:
-    /// 1. Serialize, then **re-parse** the result. If it isn't valid JSON, abort
+    /// 1. Serialize, then reparse the result. If it isn't valid JSON, abort
     ///    before touching disk ([`ConfigError::WouldCorrupt`]).
-    /// 2. Snapshot the existing file to `<path>.pigment.bak`.
-    /// 3. Write to a temp file in the *same directory*, `fsync` it, then `rename`
+    /// 2. Snapshot the existing file to <path>.pigment.bak
+    /// 3. Write to a temp file in the same directory, fsync it, then rename
     ///    it over the target — an atomic replace on a single filesystem.
     pub fn save(&self, path: impl AsRef<Path>) -> Result<(), ConfigError> {
         let path = path.as_ref();
         let rendered = self.to_pretty_string();
 
-        // (1) Never write something we can't read back.
         if let Err(e) = serde_json::from_str::<Value>(strip_preamble(&rendered)) {
             return Err(ConfigError::WouldCorrupt(e.to_string()));
         }
@@ -213,8 +154,6 @@ impl Config {
             source,
         })?;
 
-        // (2) Snapshot the current on-disk config so we can always restore a
-        // launchable state, even if the user later edits by hand.
         if path.exists() {
             let backup = backup_path(path);
             fs::copy(path, &backup).map_err(|source| ConfigError::Write {
@@ -223,7 +162,6 @@ impl Config {
             })?;
         }
 
-        // (3) Atomic write: temp file in the same dir, fsync, rename.
         crate::util::write_atomic(path, rendered.as_bytes()).map_err(|source| {
             ConfigError::Write {
                 path: path.to_path_buf(),
@@ -232,7 +170,6 @@ impl Config {
         })
     }
 
-    /// Restore the most recent backup written by [`Config::save`] over `path`.
     pub fn restore_backup(path: impl AsRef<Path>) -> Result<(), ConfigError> {
         let path = path.as_ref();
         let backup = backup_path(path);
@@ -247,16 +184,13 @@ impl Config {
     }
 }
 
-/// Path of the backup file for a given config path.
+/// path of the backup file for a given config path.
 fn backup_path(path: &Path) -> PathBuf {
     let mut s = path.as_os_str().to_os_string();
     s.push(BACKUP_SUFFIX);
     PathBuf::from(s)
 }
 
-/// Capture leading whole-line `//` comments and blank lines as the preamble,
-/// stopping at the first content line (which begins the JSON body). Returned
-/// without a trailing newline.
 fn extract_preamble(text: &str) -> String {
     let mut lines = Vec::new();
     for line in text.lines() {
@@ -267,16 +201,13 @@ fn extract_preamble(text: &str) -> String {
             break;
         }
     }
-    // Drop trailing blank lines from the captured block so we control spacing.
+    // drop trailing blank lines from the captured block so we control spacing.
     while lines.last().map(|l| l.trim().is_empty()).unwrap_or(false) {
         lines.pop();
     }
     lines.join("\n")
 }
 
-/// Strip a leading comment/blank preamble so the remainder is plain JSON, for
-/// the pre-write validity re-parse. Assumes comments only appear before the body
-/// (true for what we serialize; the body itself contains no comments).
 fn strip_preamble(text: &str) -> &str {
     match text.find('{') {
         Some(i) => &text[i..],
@@ -288,8 +219,6 @@ fn strip_preamble(text: &str) -> &str {
 mod tests {
     use super::*;
 
-    /// A faithful sample of the live Sober 1.7.1 config, including the header,
-    /// an undocumented key, and a populated fflags map.
     const LIVE_SAMPLE: &str = r#"// !!! STOP !!!
 // This file is not meant to be edited by hand unless you know what you're doing.
 // -------------------------------------------
@@ -324,10 +253,9 @@ mod tests {
 
     #[test]
     fn preserves_unknown_future_keys() {
-        // A key Pigment has never heard of must survive a round-trip untouched.
         let src = r#"{ "a_future_sober_key": 42, "use_opengl": true }"#;
         let mut cfg = Config::parse(src).unwrap();
-        cfg.set_bool("use_opengl", false); // edit an unrelated key
+        cfg.set_bool("use_opengl", false); // edit an unrelated key - plc
         let out = cfg.to_pretty_string();
         let reparsed = Config::parse(&out).unwrap();
         assert_eq!(
@@ -350,7 +278,6 @@ mod tests {
 
     #[test]
     fn serialized_output_always_reparses() {
-        // The core sober#1519 guarantee: whatever we render, Sober can parse.
         let cfg = Config::parse(LIVE_SAMPLE).unwrap();
         let out = cfg.to_pretty_string();
         serde_json::from_str::<Value>(strip_preamble(&out))
@@ -362,13 +289,11 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("config.json");
 
-        // First save: no prior file, so no backup created.
         let cfg = Config::parse(LIVE_SAMPLE).unwrap();
         cfg.save(&path).unwrap();
         assert!(path.exists());
         assert!(!backup_path(&path).exists(), "no backup expected on first write");
 
-        // Mutate and save again: previous file is backed up.
         let mut cfg2 = Config::load(&path).unwrap();
         cfg2.set_bool("use_opengl", true);
         cfg2.save(&path).unwrap();
@@ -376,7 +301,6 @@ mod tests {
         let reloaded = Config::load(&path).unwrap();
         assert_eq!(reloaded.get_bool("use_opengl"), Some(true));
 
-        // Backup holds the pre-edit value.
         assert!(backup_path(&path).exists());
         let backup = Config::load(backup_path(&path)).unwrap();
         assert_eq!(backup.get_bool("use_opengl"), Some(false));
@@ -403,7 +327,6 @@ mod tests {
 
     #[test]
     fn string_value_with_double_slash_is_not_a_comment() {
-        // A URL-like value must not be mangled by comment handling.
         let src = r#"{ "some_url": "https://roblox.com/x" }"#;
         let cfg = Config::parse(src).unwrap();
         assert_eq!(

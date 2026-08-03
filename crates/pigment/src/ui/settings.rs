@@ -1,10 +1,4 @@
-//! Settings page: a typed UI over Sober's real `config.json` keys.
-//!
-//! On Apply we reload the config from disk and set only the keys this page
-//! manages, so any key Pigment doesn't know about — and any concurrent edit by
-//! Sober's own settings dialog — survives. The write itself is atomic, validated,
-//! and backed up by `pigment_core::Config`.
-
+///settings and more configurations, genuinely tired right now.
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -16,7 +10,7 @@ type SwitchRows = Rc<RefCell<Vec<(&'static str, adw::SwitchRow)>>>;
 /// Collected enum combo rows with their option lists, read back on Apply.
 type ComboRows = Rc<RefCell<Vec<(&'static str, adw::ComboRow, &'static [&'static str])>>>;
 
-/// Boolean settings: (config key, title, subtitle).
+/// more auto generated cause I cannot be bothed to write all of this
 const BOOL_SETTINGS: &[(&str, &str, &str)] = &[
     ("discord_rpc_enabled", "Discord Rich Presence", "Share your current game on Discord"),
     ("discord_rpc_show_join_button", "Discord Join Button", "Let friends join from your Discord profile"),
@@ -27,6 +21,8 @@ const BOOL_SETTINGS: &[(&str, &str, &str)] = &[
     ("close_on_leave", "Close on Leave", "Quit Sober when you leave a game"),
     ("allow_gamepad_permission", "Gamepad Access", "Allow controllers and gamepads"),
     ("use_console_experience", "Console UI", "Use the console interface instead of desktop"),
+    ("enable_mobile_home_screen", "Mobile Home Screen", "Use the mobile home UI instead of the desktop one"),
+    ("use_libsecret", "Store Login in Keyring", "Keep the session cookie in libsecret instead of plaintext (experimental)"),
 ];
 
 /// Enum settings: (config key, title, options).
@@ -53,7 +49,7 @@ pub fn build() -> gtk::Widget {
     let switches: SwitchRows = Rc::new(RefCell::new(Vec::new()));
     let combos: ComboRows = Rc::new(RefCell::new(Vec::new()));
 
-    // Boolean toggles.
+    // toggles
     let general = adw::PreferencesGroup::builder().title("General").build();
     for (key, title, subtitle) in BOOL_SETTINGS {
         let row = adw::SwitchRow::builder()
@@ -67,7 +63,7 @@ pub fn build() -> gtk::Widget {
     page.add(&general);
 
     // Enum combos.
-    // PreferencesGroup titles are Pango markup, so the ampersand must be escaped.
+    // PreferencesGroup titles are Pango markup, so the & must be escaped.
     let graphics = adw::PreferencesGroup::builder()
         .title("Graphics &amp; Input")
         .build();
@@ -85,7 +81,7 @@ pub fn build() -> gtk::Widget {
     }
     page.add(&graphics);
 
-    // Apply group.
+    // Aaply group.
     let apply_group = adw::PreferencesGroup::new();
     let status = gtk::Label::builder().css_classes(["dim-label"]).build();
     let apply = gtk::Button::builder()
@@ -99,7 +95,7 @@ pub fn build() -> gtk::Widget {
         let status = status.clone();
         let config_path = config_path.clone();
         apply.connect_clicked(move |_| {
-            // Reload fresh so unknown keys and concurrent Sober edits are kept.
+            // reload fresh so unknown keys and concurrent Sober edits are kept.
             let mut cfg = match Config::load(&config_path) {
                 Ok(c) => c,
                 Err(e) => {
@@ -135,8 +131,7 @@ pub fn build() -> gtk::Widget {
     page.upcast()
 }
 
-/// A page shown when the config doesn't exist yet, with a button to create it by
-/// launching Sober once.
+/// A page shown when the config doesn't exist yet, with a button to create it by launching Sober once.
 fn needs_sober_page(sober: &Sober) -> gtk::Widget {
     let status = adw::StatusPage::builder()
         .icon_name("dialog-information-symbolic")
@@ -158,7 +153,7 @@ fn needs_sober_page(sober: &Sober) -> gtk::Widget {
     status.upcast()
 }
 
-/// A generic error page.
+/// error page
 fn error_page(msg: &str) -> gtk::Widget {
     adw::StatusPage::builder()
         .icon_name("dialog-error-symbolic")
@@ -166,4 +161,57 @@ fn error_page(msg: &str) -> gtk::Widget {
         .description(msg)
         .build()
         .upcast()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// EXPERIMENTAL, I'M NOT ENTIRELY SURE HOW THIS WOULD PAN OUT
+    const DOCUMENTED_KEYS: &[&str] = &[
+        "allow_gamepad_permission",
+        "close_on_leave",
+        "discord_rpc_enabled",
+        "discord_rpc_show_join_button",
+        "enable_gamemode",
+        "enable_hidpi",
+        "enable_mobile_home_screen",
+        "graphics_optimization_mode",
+        "server_location_indicator_enabled",
+        "touch_mode",
+        "use_console_experience",
+        "use_libsecret",
+        "use_opengl",
+    ];
+
+    fn managed_keys() -> Vec<&'static str> {
+        let mut keys: Vec<&str> = BOOL_SETTINGS.iter().map(|(k, ..)| *k).collect();
+        keys.extend(ENUM_SETTINGS.iter().map(|(k, ..)| *k));
+        keys.sort_unstable();
+        keys
+    }
+
+    #[test]
+    fn every_documented_sober_key_has_a_control() {
+        assert_eq!(managed_keys(), DOCUMENTED_KEYS);
+    }
+
+    #[test]
+    fn no_key_is_managed_twice() {
+        let mut keys = managed_keys();
+        let total = keys.len();
+        keys.dedup();
+        assert_eq!(keys.len(), total, "duplicate key would apply twice");
+    }
+
+    #[test]
+    fn enum_options_match_sobers_accepted_values() {
+        // The docs spell touch_mode's third value `fake-off`, but Sober itself
+        // writes and accepts `fake_off` — Daddy claude verified this shit so its good
+        let touch = ENUM_SETTINGS
+            .iter()
+            .find(|(k, ..)| *k == "touch_mode")
+            .expect("touch_mode row");
+        assert_eq!(touch.2, ["off", "on", "fake_off"]);
+    }
 }

@@ -19,6 +19,8 @@ safely rewriting its config, composing mods into its overlay, launching it, and
 ## Features
 
 - **Settings** — a typed UI over every Sober config key.
+- **Runtime status** — the installed Sober build, the Roblox client version it
+  fetched, and a warning when a newer Sober refresh is out.
 - **Profiles** — named main/alt/testing setups, applied one at a time; the active
   one is applied automatically when you launch.
 - **FastFlags** — a validating JSON editor in Bloxstrap's exact format, so Windows
@@ -33,7 +35,12 @@ safely rewriting its config, composing mods into its overlay, launching it, and
 - GTK 4 (**≥ 4.12**) and libadwaita (**≥ 1.4**) at runtime; Rust **≥ 1.96** and
   Cargo to build.
 
-See [COMPATIBILITY.md](COMPATIBILITY.md) for a per distribution breakdown
+> **Keep Sober updated.** VinegarHQ republishes Sober as periodic *refreshes*
+> that keep the same version number (1.7.1 has been rebuilt roughly weekly), and
+> Roblox rejects clients that fall behind. Pigment's Home page tells you when
+> your build is stale; `flatpak update org.vinegarhq.Sober` fixes it.
+
+See [COMPATIBILITY.md](COMPATIBILITY.md) for a per-distribution breakdown
 (Arch, CachyOS, EndeavourOS, Manjaro, SteamOS, Ubuntu, Debian, Mint, Pop!_OS).
 
 ## Install
@@ -72,20 +79,29 @@ cd packaging
 makepkg -si
 ```
 
-### Flatpak (any distro)
+### Debian, Ubuntu, Mint, Pop!_OS
 
-For non-Arch distros — including older Ubuntu/Debian LTS and the Steam Deck —
-build the Flatpak (bundles its own GTK/libadwaita, so host versions don't matter):
+There is no `.deb`, but there's a script that does the whole source build:
 
 ```sh
-flatpak install flathub org.flatpak.Builder
-flatpak run org.flatpak.Builder --user --install --force-clean \
-  build-dir packaging/flatpak/net.pigmentlab.Pigment.yaml
-flatpak run net.pigmentlab.Pigment
+./packaging/install-debian.sh                 # per-user, into ~/.local
+./packaging/install-debian.sh --prefix /usr   # system-wide
 ```
 
-The sandbox drives the Sober Flatpak via `flatpak-spawn --host`. See
-[COMPATIBILITY.md](COMPATIBILITY.md) for details.
+It installs the apt build dependencies, **checks the GTK/libadwaita floors before
+building** (so an unsupported release fails in seconds instead of minutes into
+`cargo`), sets up rustup, then installs Pigment and optionally Sober. `--help`
+lists the flags.
+
+Needs **Debian 13 (Trixie)**, **Ubuntu 24.04**, or newer — verified working on
+Debian 13 and Ubuntu 26.04. Expect the rustup step every time: no Debian or
+Ubuntu release packages a `rustc` new enough for the 1.96 floor, not even 26.04
+(1.93.1). See [COMPATIBILITY.md](COMPATIBILITY.md).
+
+### Other distributions
+
+No Flatpak, no `.deb`. Build from source with `make install` above; you need
+GTK 4.12+, libadwaita 1.4+, and Rust 1.96+ on the host.
 
 ## Layout
 

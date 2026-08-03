@@ -1,6 +1,3 @@
-//! index the real sober `base.apk` on this machine and print summary stats.
-//! read-only. usage: `cargo run -p pigment-core --example apk_tree`
-
 use pigment_core::{ApkAssetTree, SoberPaths};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

@@ -1,29 +1,14 @@
-//! Registering Pigment as the `roblox://` protocol handler.
-//!
-//! On Linux, clicking "Play" on the Roblox website launches whatever desktop
-//! application is registered for the `roblox:`/`roblox-player:` URI schemes.
-//! Sober registers itself as that handler out of the box. Pigment can take the
-//! handler over so it applies the active profile before handing the URI to
-//! Sober — the same interception Bloxstrap performs on Windows.
-//!
-//! Takeover is **opt-in and reversible**: nothing here runs unless the user asks,
-//! [`current_handler`] shows who owns the scheme, and [`restore_sober`] hands it
-//! back. Registration writes a user-level desktop file (no root) and calls
-//! `xdg-mime`. Pigment never edits Sober's own desktop file.
-
+//! registering Ppgment as the `roblox://` protocol handler.
 use std::io;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
-/// The URI schemes Roblox uses to launch a game.
 pub const ROBLOX_SCHEMES: &[&str] = &["x-scheme-handler/roblox", "x-scheme-handler/roblox-player"];
 
-/// Sober's desktop file id — the handler we restore to.
 pub const SOBER_DESKTOP: &str = "org.vinegarhq.Sober.desktop";
 
-/// The desktop file id Pigment installs for its launcher.
 pub const PIGMENT_DESKTOP: &str = "net.pigmentlab.Pigment.Launcher.desktop";
 
-/// Errors from handler registration.
 #[derive(Debug, thiserror::Error)]
 pub enum ProtocolError {
     #[error("writing desktop file at {path}: {source}")]
@@ -44,8 +29,6 @@ pub enum ProtocolError {
     NoApplicationsDir,
 }
 
-/// The user-level applications directory: `$XDG_DATA_HOME/applications` or
-/// `~/.local/share/applications`.
 pub fn user_applications_dir() -> Option<PathBuf> {
     std::env::var_os("XDG_DATA_HOME")
         .filter(|v| !v.is_empty())
@@ -58,10 +41,7 @@ pub fn user_applications_dir() -> Option<PathBuf> {
         .map(|base| base.join("applications"))
 }
 
-/// Render the desktop-file contents that make `pigment-launch` the handler.
-///
-/// `exec` is the absolute path to the `pigment-launch` binary. `%u` forwards the
-/// clicked URI. `NoDisplay=true` keeps it out of application menus — it's a
+/// Render the desktop file contents that make `pigment-launch` the handler.
 /// handler, not a launchable app.
 pub fn launcher_desktop_file(exec: &Path) -> String {
     let exec = exec.display();
@@ -78,10 +58,8 @@ pub fn launcher_desktop_file(exec: &Path) -> String {
     )
 }
 
-/// The desktop-file id currently handling `roblox:` (e.g.
-/// `org.vinegarhq.Sober.desktop`), via `xdg-mime query default`.
 pub fn current_handler() -> Option<String> {
-    let out = crate::util::host_command("xdg-mime")
+    let out = Command::new("xdg-mime")
         .args(["query", "default", ROBLOX_SCHEMES[0]])
         .output()
         .ok()?;
@@ -97,34 +75,17 @@ pub fn pigment_is_handler() -> bool {
     current_handler().as_deref() == Some(PIGMENT_DESKTOP)
 }
 
-/// Install the launcher desktop file and make Pigment the default handler for
-/// both Roblox schemes. Idempotent.
-///
-/// The freshly written desktop file must be indexed before a default association
-/// to it will resolve — notably on KDE, where handler lookup goes through the
-/// service cache (ksycoca), not `mimeapps.list` directly. So we refresh the
-/// desktop caches between writing the file and calling `xdg-mime`.
 pub fn register(launch_exec: &Path) -> Result<(), ProtocolError> {
-    // Natively, Pigment writes its own handler desktop file into the user
-    // applications dir. Inside a Flatpak sandbox that dir is redirected to the
-    // app's private data and the host can't see it — instead Flatpak *exports*
-    // the launcher desktop file bundled in the image (see the manifest's
-    // `net.pigmentlab.Pigment.Launcher.desktop`), so here we only set the default
-    // association, routing `xdg-mime` through the host.
-    if crate::util::in_flatpak() {
-        refresh_desktop_caches(None);
-    } else {
-        let dir = user_applications_dir().ok_or(ProtocolError::NoApplicationsDir)?;
-        let path = dir.join(PIGMENT_DESKTOP);
-        let contents = launcher_desktop_file(launch_exec);
-        crate::util::write_atomic(&path, contents.as_bytes()).map_err(|source| {
-            ProtocolError::Write {
-                path: path.clone(),
-                source,
-            }
-        })?;
-        refresh_desktop_caches(Some(&dir));
-    }
+    let dir = user_applications_dir().ok_or(ProtocolError::NoApplicationsDir)?;
+    let path = dir.join(PIGMENT_DESKTOP);
+    let contents = launcher_desktop_file(launch_exec);
+    crate::util::write_atomic(&path, contents.as_bytes()).map_err(|source| {
+        ProtocolError::Write {
+            path: path.clone(),
+            source,
+        }
+    })?;
+    refresh_desktop_caches(&dir);
 
     for scheme in ROBLOX_SCHEMES {
         xdg_mime_default(PIGMENT_DESKTOP, scheme)?;
@@ -132,18 +93,12 @@ pub fn register(launch_exec: &Path) -> Result<(), ProtocolError> {
     Ok(())
 }
 
-/// Best-effort refresh of the desktop-file caches so a newly written `.desktop`
-/// is visible to handler lookup. Every tool here is optional: missing ones are
-/// skipped, and none can fail registration. `update-desktop-database` is the
-/// freedesktop standard; `kbuildsycoca6`/`5` rebuild KDE's service cache.
-fn refresh_desktop_caches(applications_dir: Option<&Path>) {
-    let mut cmd = crate::util::host_command("update-desktop-database");
-    if let Some(dir) = applications_dir {
-        cmd.arg(dir);
-    }
-    let _ = cmd.output();
+fn refresh_desktop_caches(applications_dir: &Path) {
+    let _ = Command::new("update-desktop-database")
+        .arg(applications_dir)
+        .output();
     for tool in ["kbuildsycoca6", "kbuildsycoca5"] {
-        let _ = crate::util::host_command(tool).arg("--noincremental").output();
+        let _ = Command::new(tool).arg("--noincremental").output();
     }
 }
 
@@ -157,7 +112,7 @@ pub fn restore_sober() -> Result<(), ProtocolError> {
 
 /// `xdg-mime default <desktop> <scheme>`, surfacing failures.
 fn xdg_mime_default(desktop: &str, scheme: &str) -> Result<(), ProtocolError> {
-    let out = crate::util::host_command("xdg-mime")
+    let out = Command::new("xdg-mime")
         .args(["default", desktop, scheme])
         .output()
         .map_err(|source| ProtocolError::Spawn {

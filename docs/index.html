@@ -1,4 +1,4 @@
-<title>Pigment — Roblox on Linux, done right</title>
+<title>Pigment — Roblox on Linux</title>
 <meta name="description" content="Pigment is a Bloxstrap-class launcher and manager for Roblox on Linux, built on the Sober runtime. Settings, profiles, FastFlags and mods — without editing JSON.">
 <link rel="canonical" href="https://pigmentlab.net/">
 
@@ -236,7 +236,6 @@ h1 .hl { color: var(--violet); }
 .path .run { margin-top: .5rem; }
 .stat { font-size: 11.5px; border: 1px solid var(--edge-2); border-radius: 999px;
   padding: .05rem .5rem; color: var(--dim); margin-left: .4rem; }
-.stat.review { color: var(--amber); border-color: rgb(242 180 106 / .45); }
 
 </style>
 
@@ -371,12 +370,14 @@ h1 .hl { color: var(--violet); }
       <div class="body">
         <p class="cmd"><span class="u">you</span><span class="at">@pigmentlab</span><span class="d">:~$</span> pigmentlab --status</p>
         <div class="rows">
-          <p class="row"><span class="l">Sober runtime</span><span class="m">1.7.1</span><span class="ok">✓</span></p>
+          <p class="row"><span class="l">Sober runtime</span><span class="m">1.7.1 · 07-28</span><span class="ok">✓</span></p>
+          <p class="row"><span class="l">Roblox client</span><span class="m">2.731.944</span><span class="ok">✓</span></p>
           <p class="row"><span class="l">Configuration</span><span class="m">present</span><span class="ok">✓</span></p>
           <p class="row"><span class="l">Handler</span><span class="m">pigment</span><span class="ok">✓</span></p>
           <p class="row"><span class="l">Profile</span><span class="m">main</span><span class="ok">✓</span></p>
         </div>
-        <p class="note"># what Pigment's Home page shows, live</p>
+        <p class="note"># what Pigment's Home page shows, live — Sober's version<br>
+          # sticks at 1.7.1, so it tracks the build date too</p>
       </div>
     </section>
 
@@ -388,9 +389,10 @@ h1 .hl { color: var(--violet); }
           <p class="row"><span class="l">Arch · CachyOS</span><span class="m">aur</span><span class="ok">✓</span></p>
           <p class="row"><span class="l">EndeavourOS</span><span class="m">aur</span><span class="ok">✓</span></p>
           <p class="row"><span class="l">Manjaro</span><span class="m">aur</span><span class="ok">✓</span></p>
-          <p class="row"><span class="l">Steam Deck</span><span class="m">flatpak</span><span class="ok">✓</span></p>
-          <p class="row"><span class="l">Ubuntu 24.04+</span><span class="m">flatpak</span><span class="ok">✓</span></p>
-          <p class="row"><span class="l">Mint 22 · Pop</span><span class="m">flatpak</span><span class="ok">✓</span></p>
+          <p class="row"><span class="l">Debian 13</span><span class="m">script</span><span class="ok">✓</span></p>
+          <p class="row"><span class="l">Ubuntu 24.04 · 26.04</span><span class="m">script</span><span class="ok">✓</span></p>
+          <p class="row"><span class="l">Mint 22 · Pop</span><span class="m">script</span><span class="ok">✓</span></p>
+          <p class="row"><span class="l">Steam Deck</span><span class="m">source</span><span class="ok">✓</span></p>
           <p class="row"><span class="l">Ubuntu 22.04</span><span class="m">—</span><span class="no">✗</span></p>
           <p class="row"><span class="l">Debian 12</span><span class="m">—</span><span class="no">✗</span></p>
         </div>
@@ -459,10 +461,11 @@ h1 .hl { color: var(--violet); }
               <button class="copy" data-copy="yay -S pigment-launcher">copy</button></div>
           </div>
           <div class="path">
-            <h3>flatpak<span class="stat review">submission in review</span></h3>
-            <p class="who">The right answer for Steam Deck, Ubuntu, Mint and Pop!_OS.
-               Not on Flathub yet — build it from the manifest in the meantime.</p>
-            <div class="run"><span class="p">$</span><code>flatpak run org.flatpak.Builder …</code></div>
+            <h3>debian<span class="stat">debian 13 · ubuntu 24.04+ · mint · pop</span></h3>
+            <p class="who">One script: apt dependencies, a version check that fails fast on
+               releases too old to build, rustup, then Pigment and Sober. No <code>.deb</code>.</p>
+            <div class="run"><span class="p">$</span><code>./packaging/install-debian.sh</code>
+              <button class="copy" data-copy="./packaging/install-debian.sh">copy</button></div>
           </div>
           <div class="path">
             <h3>source<span class="stat">any distro</span></h3>

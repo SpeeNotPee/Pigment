@@ -24,8 +24,6 @@ ICON_SIZES := 48 64 128 256 512
 
 .PHONY: build install uninstall clean dist
 
-# Produce packaging/pigment-$(VERSION).tar.gz for the PKGBUILD:
-#   make dist && cd packaging && makepkg -si
 dist:
 	rm -rf dist/$(APPID)-tree
 	mkdir -p dist/pigment-$(VERSION)
@@ -38,8 +36,6 @@ dist:
 build:
 	$(CARGO) build --release --workspace
 
-# Note: depends on `build` so `make install` works standalone. Under makepkg,
-# build() already ran cargo, so this cargo invocation is a fast no-op.
 install: build
 	install -Dm755 target/release/pigmentlab      $(BINDIR)/pigmentlab
 	install -Dm755 target/release/pigment-launch  $(BINDIR)/pigment-launch

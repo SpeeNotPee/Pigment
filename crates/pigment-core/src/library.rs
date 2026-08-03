@@ -1,16 +1,4 @@
-//! The mod library: the collection of installed mods under Pigment's config
-//! directory (`~/.config/pigment/mods/<name>/`).
-//!
-//! This layer only manages the *collection* — installing a mod's file tree,
-//! listing what's installed, and removing one. Which mods are *enabled* (and
-//! thus composed into Sober's overlay) is a property of the active profile
-//! (`Profile::mods`); enabling happens through [`crate::ProfileStore`], and the
-//! actual overlay composition and conflict detection live in [`crate::mods`].
-//!
-//! A mod is a directory tree mirroring the Roblox APK's `assets/` layout — e.g.
-//! `content/textures/Cursors/KeyboardMouse/ArrowCursor.png` — so it can be
-//! validated against [`crate::ApkAssetTree`].
-
+//mod library
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -18,7 +6,7 @@ use std::path::{Path, PathBuf};
 use crate::mods::ModSource;
 use crate::paths::PigmentPaths;
 
-/// Manages installed mods under [`PigmentPaths::mods_dir`].
+/// Manages installed mods
 #[derive(Debug, Clone)]
 pub struct ModLibrary {
     paths: PigmentPaths,
@@ -34,12 +22,11 @@ impl ModLibrary {
         Some(Self::new(PigmentPaths::discover()?))
     }
 
-    /// The directory a named mod lives in (whether or not it exists).
     pub fn mod_dir(&self, name: &str) -> PathBuf {
         self.paths.mods_dir().join(name)
     }
 
-    /// All installed mods, sorted by name.
+    /// all installed mods, sorted by name.
     pub fn installed(&self) -> io::Result<Vec<ModSource>> {
         let dir = self.paths.mods_dir();
         let mut mods = Vec::new();
@@ -60,20 +47,17 @@ impl ModLibrary {
         Ok(mods)
     }
 
-    /// Look up one installed mod by name.
+    /// installed mod search
     pub fn get(&self, name: &str) -> Option<ModSource> {
         let dir = self.mod_dir(name);
         dir.is_dir().then(|| ModSource::new(name, dir))
     }
 
-    /// Whether a mod by this name is installed.
+    /// whether a mod by this name is installed.
     pub fn contains(&self, name: &str) -> bool {
         self.mod_dir(name).is_dir()
     }
 
-    /// Install a mod by copying a source directory tree into the library under
-    /// `name`, replacing any existing mod of the same name. Returns the sanitized
-    /// name actually used.
     pub fn install_from_dir(&self, name: &str, src: &Path) -> io::Result<String> {
         let name = sanitize_name(name);
         if name.is_empty() {
@@ -90,7 +74,6 @@ impl ModLibrary {
         Ok(name)
     }
 
-    /// Remove an installed mod. Removing a missing mod is not an error.
     pub fn remove(&self, name: &str) -> io::Result<()> {
         let dir = self.mod_dir(name);
         match fs::remove_dir_all(&dir) {
@@ -101,9 +84,6 @@ impl ModLibrary {
     }
 }
 
-/// Reduce a proposed mod name to a safe single path component: keep it to its
-/// base name and strip anything that isn't alphanumeric, dash, underscore, dot,
-/// or space. Prevents path traversal and nested-directory surprises.
 fn sanitize_name(name: &str) -> String {
     let base = Path::new(name)
         .file_name()
@@ -133,7 +113,6 @@ mod tests {
         (dir, lib)
     }
 
-    /// Build a source mod tree in a temp dir; return its path.
     fn make_mod(files: &[(&str, &[u8])]) -> tempfile::TempDir {
         let dir = tempfile::tempdir().unwrap();
         for (rel, bytes) in files {

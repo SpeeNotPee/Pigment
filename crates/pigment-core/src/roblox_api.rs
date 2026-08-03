@@ -1,17 +1,8 @@
-//! Minimal, best-effort lookups against Roblox's public web API.
-//!
-//! Used to turn the numeric universe id we parse from the logs into a human game
-//! name for the Activity view and Discord Rich Presence. Every call is
-//! best-effort: any network or parse failure yields `None`, and callers fall back
-//! to showing the id. Requests are blocking with a short timeout, so callers run
-//! them off the UI thread.
-
+//!best effort lookups against Roblox public web API.
 use std::time::Duration;
 
-/// The games endpoint: `?universeIds=<id>` → `{ "data": [ { "name": … } ] }`.
 const GAMES_ENDPOINT: &str = "https://games.roblox.com/v1/games";
 
-/// Resolve a universe id to its experience name, or `None` on any failure.
 pub fn game_name(universe_id: u64) -> Option<String> {
     let url = format!("{GAMES_ENDPOINT}?universeIds={universe_id}");
     let config = ureq::Agent::config_builder()
@@ -22,8 +13,6 @@ pub fn game_name(universe_id: u64) -> Option<String> {
     parse_game_name(&body)
 }
 
-/// Extract `data[0].name` from the games-endpoint JSON. Pure, so it's unit-tested
-/// without the network.
 fn parse_game_name(json: &str) -> Option<String> {
     let v: serde_json::Value = serde_json::from_str(json).ok()?;
     v.get("data")?

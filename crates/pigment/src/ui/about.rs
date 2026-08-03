@@ -1,6 +1,4 @@
-//! The primary header menu (feedback, docs) and the About window, which carries
-//! Pigment's license and the required legal disclaimer / trademark notice.
-
+///pre-generated config cause like wtf
 use adw::prelude::*;
 use gtk::gio;
 
@@ -13,10 +11,10 @@ const DOCS: &str = "https://pigmentlab.net/guide.html";
 const TERMS: &str = "https://github.com/SpeeNotPee/Pigment/blob/main/TERMS.md";
 const PRIVACY: &str = "https://github.com/SpeeNotPee/Pigment/blob/main/PRIVACY.md";
 
-/// Shown in the About window's "Legal" tab. Kept in sync with TERMS.md.
-const DISCLAIMER: &str = "Pigment is free, unofficial, community software, provided \u{201c}as is\u{201d} \
+/// more stuff - AI generated legal shit
+const DISCLAIMER: &str = "Pigment is free, unofficial, open source, provided \u{201c}as is\u{201d} \
 without warranty of any kind.\n\n\
-It is not affiliated with, endorsed by, or sponsored by Roblox Corporation or VinegarHQ. \
+It is not affiliated with, or sponsored by Roblox Corporation or VinegarHQ. \
 \u{201c}Roblox\u{201d} is a trademark of Roblox Corporation; \u{201c}Sober\u{201d} and \u{201c}Vinegar\u{201d} \
 are projects of VinegarHQ. All trademarks are the property of their respective owners.\n\n\
 You are responsible for complying with Roblox\u{2019}s Terms of Use and Community Standards. Using \
@@ -24,8 +22,7 @@ unofficial clients is at your own risk, including any risk to your account. Pigm
 Sober\u{2019}s documented, sanctioned mechanisms and does not modify the Roblox client or bypass its \
 anti-cheat.";
 
-/// The primary menu button for the header bar. Call [`install_menu`] once the
-/// window exists to wire the actions it triggers.
+/// even more shit
 pub(crate) fn menu_button() -> gtk::MenuButton {
     gtk::MenuButton::builder()
         .icon_name("open-menu-symbolic")
@@ -34,7 +31,7 @@ pub(crate) fn menu_button() -> gtk::MenuButton {
         .build()
 }
 
-/// Attach the menu model and the window actions the menu triggers.
+/// w copy
 pub(crate) fn install_menu(window: &adw::ApplicationWindow, button: &gtk::MenuButton) {
     let menu = gio::Menu::new();
     let feedback = gio::Menu::new();
@@ -63,7 +60,7 @@ pub(crate) fn install_menu(window: &adw::ApplicationWindow, button: &gtk::MenuBu
     ]);
 }
 
-/// Open a URL in the user's default browser.
+/// idk why I added this tbh
 fn open_uri(window: &impl IsA<gtk::Window>, url: &'static str) {
     gtk::UriLauncher::new(url).launch(
         Some(window),
@@ -76,9 +73,7 @@ fn open_uri(window: &impl IsA<gtk::Window>, url: &'static str) {
     );
 }
 
-/// Present the About window, including the version, license, links to the full
-/// Terms and Privacy documents, a "Report an Issue" action, and the legal
-/// disclaimer / trademark notice.
+/// even more AI generated legal shit that I dont bother doing.
 pub(crate) fn show_about(parent: &adw::ApplicationWindow) {
     let about = adw::AboutWindow::builder()
         .transient_for(parent)
