@@ -1,0 +1,16 @@
+{
+  "entries": [
+    {
+      "id": "old-death-sound",
+      "name": "Old Death Sound (oof)",
+      "description": "The classic Roblox death sound. Downloaded from the community return-oof-sound archive — not shipped inside Pigment.",
+      "files": [
+        {
+          "apk_path": "content/sounds/oof.ogg",
+          "url": "https://raw.githubusercontent.com/OctaNebula/return-oof-sound/main/Resources/ouch.ogg",
+          "sha256": "da23c3bc65272fcf50d56cc14d74037e85aee3f4ae1639dc7717b232bf37812a"
+        }
+      ]
+    }
+  ]
+}

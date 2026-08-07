@@ -4,7 +4,7 @@
 use std::rc::Rc;
 
 use adw::prelude::*;
-use pigment_core::{mods, ApkAssetTree, ModLibrary, ProfileStore, Sober};
+use pigment_core::{mods, presets, ApkAssetTree, ModLibrary, ProfileStore, Sober};
 
 /// shared page context, cloned into row callbacks.
 struct Ctx {
@@ -68,7 +68,6 @@ pub fn build() -> gtk::Widget {
         .wrap(true)
         .css_classes(["dim-label"])
         .build();
-    page.append(&status);
 
     let ctx = Rc::new(Ctx {
         lib,
@@ -79,6 +78,10 @@ pub fn build() -> gtk::Widget {
         banner,
         status,
     });
+
+    page.append(&presets_group(&ctx));
+    page.append(&catalog_group(&ctx));
+    page.append(&ctx.status);
 
     // Install from folder via a native folder picker.
     {
@@ -111,6 +114,174 @@ pub fn build() -> gtk::Widget {
 
     populate(&ctx);
     super::scrolled(&page).upcast()
+}
+
+/// lil suffix install button, same look everywhere
+fn install_button(label: &str) -> gtk::Button {
+    gtk::Button::builder()
+        .label(label)
+        .valign(gtk::Align::Center)
+        .css_classes(["flat"])
+        .build()
+}
+
+/// the presets we ship in the binary + the pick-ur-own-font row
+fn presets_group(ctx: &Rc<Ctx>) -> adw::PreferencesGroup {
+    let group = adw::PreferencesGroup::builder()
+        .title("Preset Mods")
+        .description("One-click mods that ship with Pigment. Installing adds them to your library above — flip the switch to enable.")
+        .build();
+
+    for preset in presets::BUNDLED {
+        let row = adw::ActionRow::builder()
+            .title(preset.name)
+            .subtitle(preset.description)
+            .build();
+        let btn = install_button(if ctx.lib.contains(preset.id) { "Reinstall" } else { "Install" });
+        {
+            let ctx = ctx.clone();
+            btn.connect_clicked(move |btn| {
+                match presets::install_bundled(&ctx.lib, preset) {
+                    Ok(name) => {
+                        set_ok(&ctx.status, &format!("Installed “{name}”. Toggle it on to apply."));
+                        btn.set_label("Reinstall");
+                        populate(&ctx);
+                    }
+                    Err(e) => set_error(&ctx.status, &format!("Could not install preset: {e}")),
+                }
+            });
+        }
+        row.add_suffix(&btn);
+        group.add(&row);
+    }
+
+    // custom font: user picks a ttf/otf, we clone it over every builder sans weight
+    let row = adw::ActionRow::builder()
+        .title("Custom UI Font")
+        .subtitle("Replace the Roblox UI font (Builder Sans) with any TTF or OTF file")
+        .build();
+    let btn = install_button("Choose font…");
+    {
+        let ctx = ctx.clone();
+        btn.connect_clicked(move |btn| {
+            let filter = gtk::FileFilter::new();
+            filter.set_name(Some("Fonts (TTF/OTF)"));
+            filter.add_suffix("ttf");
+            filter.add_suffix("otf");
+            let filters = gtk::gio::ListStore::new::<gtk::FileFilter>();
+            filters.append(&filter);
+            let dialog = gtk::FileDialog::builder()
+                .title("Choose a font")
+                .modal(true)
+                .filters(&filters)
+                .build();
+            let window = btn.root().and_downcast::<gtk::Window>();
+            let ctx = ctx.clone();
+            dialog.open(window.as_ref(), gtk::gio::Cancellable::NONE, move |res| {
+                let Ok(file) = res else { return };
+                let Some(path) = file.path() else { return };
+                match presets::install_font(&ctx.lib, &path) {
+                    Ok(name) => {
+                        set_ok(&ctx.status, &format!("Installed “{name}”. Toggle it on to apply."));
+                        populate(&ctx);
+                    }
+                    Err(e) => set_error(&ctx.status, &format!("Could not install font: {e}")),
+                }
+            });
+        });
+    }
+    row.add_suffix(&btn);
+    group.add(&row);
+
+    group
+}
+
+/// stuff we fetch from the catalog json on github. network lives on worker threads,
+/// results ride async channels back like everywhere else in this app
+fn catalog_group(ctx: &Rc<Ctx>) -> adw::PreferencesGroup {
+    let group = adw::PreferencesGroup::builder()
+        .title("Downloadable Presets")
+        .description("Fetched from the Pigment catalog. Downloads are verified against pinned checksums before install.")
+        .build();
+
+    let placeholder = adw::ActionRow::builder()
+        .title("Loading catalog…")
+        .subtitle(presets::catalog_url())
+        .build();
+    group.add(&placeholder);
+
+    let (tx, rx) = async_channel::unbounded::<Result<presets::Catalog, String>>();
+    std::thread::spawn(move || {
+        let _ = tx.send_blocking(presets::fetch_catalog(&presets::catalog_url()).map_err(|e| e.to_string()));
+    });
+    {
+        let (group, ctx) = (group.clone(), ctx.clone());
+        gtk::glib::spawn_future_local(async move {
+            let Ok(res) = rx.recv().await else { return };
+            group.remove(&placeholder);
+            match res {
+                Ok(catalog) if catalog.entries.is_empty() => {
+                    group.add(&adw::ActionRow::builder().title("Catalog is empty").build());
+                }
+                Ok(catalog) => {
+                    for entry in catalog.entries {
+                        group.add(&catalog_row(&ctx, entry));
+                    }
+                }
+                Err(e) => {
+                    group.add(
+                        &adw::ActionRow::builder()
+                            .title("Catalog unavailable")
+                            .subtitle(&e)
+                            .build(),
+                    );
+                }
+            }
+        });
+    }
+
+    group
+}
+
+/// one downloadable preset row. install downloads on a worker thread so the ui dont freeze
+fn catalog_row(ctx: &Rc<Ctx>, entry: presets::CatalogEntry) -> adw::ActionRow {
+    let row = adw::ActionRow::builder()
+        .title(&entry.name)
+        .subtitle(&entry.description)
+        .build();
+    let btn = install_button(if ctx.lib.contains(&entry.id) { "Reinstall" } else { "Install" });
+    {
+        let ctx = ctx.clone();
+        btn.connect_clicked(move |btn| {
+            btn.set_sensitive(false);
+            btn.set_label("Downloading…");
+            let (tx, rx) = async_channel::unbounded::<Result<String, String>>();
+            let (lib, entry) = (ctx.lib.clone(), entry.clone());
+            std::thread::spawn(move || {
+                let _ = tx.send_blocking(
+                    presets::install_remote(&lib, &entry).map_err(|e| e.to_string()),
+                );
+            });
+            let (ctx, btn) = (ctx.clone(), btn.clone());
+            gtk::glib::spawn_future_local(async move {
+                let Ok(res) = rx.recv().await else { return };
+                btn.set_sensitive(true);
+                match res {
+                    Ok(name) => {
+                        set_ok(&ctx.status, &format!("Installed “{name}”. Toggle it on to apply."));
+                        btn.set_label("Reinstall");
+                        populate(&ctx);
+                    }
+                    Err(e) => {
+                        btn.set_label("Install");
+                        set_error(&ctx.status, &format!("Could not install: {e}"));
+                    }
+                }
+            });
+        });
+    }
+    row.add_suffix(&btn);
+    row
 }
 
 /// rebuild the mod list and the conflict banner from current state.

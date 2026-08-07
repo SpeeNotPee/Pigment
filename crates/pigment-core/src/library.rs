@@ -74,6 +74,46 @@ impl ModLibrary {
         Ok(name)
     }
 
+    /// install a mod straight from in-memory bytes. presets use this so they dont
+    /// have to stage a temp folder first. rel paths are apk-relative like on disk
+    pub fn install_from_files(&self, name: &str, files: &[(&str, &[u8])]) -> io::Result<String> {
+        let name = sanitize_name(name);
+        if name.is_empty() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "mod name is empty after sanitizing",
+            ));
+        }
+        if files.is_empty() {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, "mod has no files"));
+        }
+        let dest = self.mod_dir(&name);
+        if dest.exists() {
+            fs::remove_dir_all(&dest)?;
+        }
+        for (rel, bytes) in files {
+            // kill traversal attempts dead, a preset path w/ .. would be a repo bug but still
+            let rel_path = Path::new(rel);
+            if rel_path.is_absolute()
+                || rel_path
+                    .components()
+                    .any(|c| matches!(c, std::path::Component::ParentDir))
+            {
+                fs::remove_dir_all(&dest).ok();
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    format!("refusing bad mod path {rel:?}"),
+                ));
+            }
+            let target = dest.join(rel_path);
+            if let Some(parent) = target.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::write(&target, bytes)?;
+        }
+        Ok(name)
+    }
+
     pub fn remove(&self, name: &str) -> io::Result<()> {
         let dir = self.mod_dir(name);
         match fs::remove_dir_all(&dir) {

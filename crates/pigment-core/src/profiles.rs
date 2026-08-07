@@ -196,6 +196,18 @@ impl ProfileStore {
     }
 }
 
+impl ProfileStore {
+    /// apply whatever profile is active rn. Ok(None) = nothing active, launch w/ config as-is
+    /// shared by pigment-launch and the gui join buttons so they cant drift apart
+    pub fn apply_active(&self, sober: &SoberPaths) -> Result<Option<ApplyReport>, ProfileError> {
+        let Some(name) = self.active() else {
+            return Ok(None);
+        };
+        let profile = self.load(&name)?;
+        self.apply(&profile, sober).map(Some)
+    }
+}
+
 #[derive(Debug, Default, Serialize, Deserialize)]
 struct State {
     #[serde(default)]

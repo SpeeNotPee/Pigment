@@ -27,28 +27,18 @@ fn apply_active_profile(sober: &Sober) {
     let Some(store) = ProfileStore::discover() else {
         return;
     };
-    let Some(active) = store.active() else {
-        // No active profile: launch Sober with its config untouched.
-        return;
-    };
-    let profile = match store.load(&active) {
-        Ok(p) => p,
-        Err(e) => {
-            eprintln!("pigment-launch: could not load profile {active:?}: {e}");
-            return;
+    // core does the actual work now so the gui join buttons cant drift from this path
+    match store.apply_active(sober.paths()) {
+        Ok(Some(report)) if !report.missing_mods.is_empty() => {
+            eprintln!(
+                "pigment-launch: active profile references missing mods: {}",
+                report.missing_mods.join(", ")
+            );
         }
-    };
-    match store.apply(&profile, sober.paths()) {
-        Ok(report) => {
-            if !report.missing_mods.is_empty() {
-                eprintln!(
-                    "pigment-launch: profile {active:?} references missing mods: {}",
-                    report.missing_mods.join(", ")
-                );
-            }
-        }
+        // None = no active profile, launch w/ config untouched
+        Ok(_) => {}
         Err(e) => {
-            eprintln!("pigment-launch: could not apply profile {active:?}: {e}; launching anyway");
+            eprintln!("pigment-launch: could not apply active profile: {e}; launching anyway");
         }
     }
 }

@@ -43,7 +43,7 @@ libadwaita 1.4 floor can run it:
 | **Ubuntu 26.04 LTS** (Resolute Raccoon) | 4.22.2 | 1.9.0 | ✅ Works |
 | **Ubuntu 24.04 LTS** (Noble Numbat) | 4.14.2 | 1.5.0 | ✅ Works |
 | **Ubuntu 22.04 LTS** | 4.6 | 1.1 | ❌ Too old |
-| **Debian 13 (Trixie)** and newer | 4.18.6 | 1.7.6 | ✅ Works |
+| **Debian 13 (Trixie)** and newer | 4.18.6 | 1.7.6 | ✅ Works — verified on real hardware |
 | **Debian 12 (Bookworm)** | 4.8 | 1.2 | ❌ Too old |
 | **Linux Mint 22** (Ubuntu 24.04 base) | 4.14 | 1.5 | ✅ Works |
 | **Linux Mint 21.x** (Ubuntu 22.04 base) | 4.6 | 1.1 | ❌ Too old |
@@ -51,7 +51,9 @@ libadwaita 1.4 floor can run it:
 | **Pop!_OS 22.04** | 4.6 | 1.1 | ❌ Too old |
 
 *Ubuntu and Debian rows verified 2026-08-03 against `packages.ubuntu.com` and
-`packages.debian.org`; Mint and Pop!_OS inherit their Ubuntu base.*
+`packages.debian.org`; Mint and Pop!_OS inherit their Ubuntu base. Debian 13
+additionally verified end-to-end on real hardware 2026-08-03 —
+`install-debian.sh` full run, build, install, and app launch.*
 
 **Rule of thumb:** anything on an **Ubuntu 24.04 base or newer**, or **Debian 13
 or newer**, works. The 22.04 / Debian 12 generation does not.

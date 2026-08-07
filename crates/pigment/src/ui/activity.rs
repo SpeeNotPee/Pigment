@@ -1,4 +1,4 @@
-/// I dont think discord works works tbh
+// I dont think discord works works tbh
 
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use adw::prelude::*;
-use pigment_core::{activity, discord, roblox_api, Sober, Status};
+use pigment_core::{activity, discord, roblox_api, ProfileStore, Sober, Status};
 
 /// I'm 99% this shit cannot be hjacked but I could always be wrong idk
 const DISCORD_CLIENT_ID: &str = "1526262789927075950";
@@ -32,7 +32,7 @@ pub fn build() -> gtk::Widget {
         .build();
 
     page.append(&discord_group(&log_path));
-    page.append(&recent_games_group(&log_path));
+    page.append(&recent_games_group(&sober, &log_path));
 
     super::scrolled(&page).upcast()
 }
@@ -146,9 +146,37 @@ fn resolve_name(cache: &mut HashMap<u64, String>, universe_id: Option<u64>) -> O
     (!name.is_empty()).then_some(name)
 }
 
+/// apply the active profile then hand the deep link to sober. best effort on the profile,
+/// same rules as pigment-launch: a broken profile must never eat the join itself
+fn join(sober: &Sober, place_id: u64, job_id: Option<&str>) {
+    if let Some(store) = ProfileStore::discover() {
+        if let Err(e) = store.apply_active(sober.paths()) {
+            eprintln!("pigment: could not apply active profile: {e}; joining anyway");
+        }
+    }
+    let uri = pigment_core::join_uri(place_id, job_id);
+    match sober.launch(Some(&uri)) {
+        Ok(_) => super::note(&format!("joining {uri}")),
+        Err(e) => eprintln!("pigment: failed to launch Sober: {e}"),
+    }
+}
+
+/// lil suffix button for a session row
+fn join_button(label: &str, tooltip: &str) -> gtk::Button {
+    gtk::Button::builder()
+        .label(label)
+        .tooltip_text(tooltip)
+        .valign(gtk::Align::Center)
+        .css_classes(["flat"])
+        .build()
+}
+
 /// list of recent game session, I think chronological order is borken tho.
-fn recent_games_group(log_path: &std::path::Path) -> adw::PreferencesGroup {
-    let group = adw::PreferencesGroup::builder().title("Recent Games").build();
+fn recent_games_group(sober: &Sober, log_path: &std::path::Path) -> adw::PreferencesGroup {
+    let group = adw::PreferencesGroup::builder()
+        .title("Recent Games")
+        .description("Join drops you in a fresh server. Same server rejoins the exact one — it errors if that server is gone.")
+        .build();
 
     let sessions = recent_sessions(log_path);
 
@@ -172,6 +200,24 @@ fn recent_games_group(log_path: &std::path::Path) -> adw::PreferencesGroup {
         if s.is_active() {
             row.add_suffix(&gtk::Image::from_icon_name("media-playback-start-symbolic"));
         }
+
+        // both buttons on every row, per user request. job id is always set by the parser
+        // but stays optional here so a weird log line cant panic us
+        let fresh = join_button("Join", "Join this game on a fresh server");
+        {
+            let (sober, place_id) = (sober.clone(), s.place_id);
+            fresh.connect_clicked(move |_| join(&sober, place_id, None));
+        }
+        row.add_suffix(&fresh);
+
+        let same = join_button("Same server", "Rejoin the exact server this session was on");
+        {
+            let (sober, place_id, job_id) = (sober.clone(), s.place_id, s.job_id.clone());
+            same.connect_clicked(move |_| join(&sober, place_id, Some(&job_id)));
+        }
+        same.set_sensitive(!s.job_id.is_empty());
+        row.add_suffix(&same);
+
         if let Some(uid) = s.universe_id {
             jobs.push((i, uid));
         }

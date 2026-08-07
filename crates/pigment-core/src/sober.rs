@@ -216,6 +216,17 @@ fn parse_build_tag(subject: &str) -> Option<String> {
         .map(str::to_string)
 }
 
+/// deep link for joining a game. job id pins the exact server, w/o it roblox picks a fresh one
+/// heads up: job ids die when the server shuts down, roblox will js error at u. not my problem
+pub fn join_uri(place_id: u64, job_id: Option<&str>) -> String {
+    match job_id {
+        Some(job) if !job.is_empty() => {
+            format!("roblox://experiences/start?placeId={place_id}&gameInstanceId={job}")
+        }
+        _ => format!("roblox://experiences/start?placeId={place_id}"),
+    }
+}
+
 /// Read `v1.app_version` — the Roblox client version — from Sober's state file.
 fn parse_roblox_version(state_json: &str) -> Option<String> {
     let root: serde_json::Value = serde_json::from_str(state_json).ok()?;
@@ -332,6 +343,23 @@ Installed Size: 18.0 MB\n\
         assert_eq!(parse_build_tag("Update Sober to 1.7.1"), None);
         // Not a hash, so not a build tag.
         assert_eq!(parse_build_tag("bump 2026-07-28_release"), None);
+    }
+
+    #[test]
+    fn join_uri_with_and_without_a_server() {
+        assert_eq!(
+            join_uri(17625359962, None),
+            "roblox://experiences/start?placeId=17625359962"
+        );
+        assert_eq!(
+            join_uri(17625359962, Some("135d0895-503a-4884-885e-c963758024e3")),
+            "roblox://experiences/start?placeId=17625359962&gameInstanceId=135d0895-503a-4884-885e-c963758024e3"
+        );
+        // empty job id = same as no job id, dont emit a dangling param
+        assert_eq!(
+            join_uri(5, Some("")),
+            "roblox://experiences/start?placeId=5"
+        );
     }
 
     #[test]
