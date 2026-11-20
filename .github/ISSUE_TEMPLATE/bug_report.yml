@@ -33,7 +33,7 @@ body:
     attributes:
       label: Pigment version
       description: See Menu ▸ About Pigment.
-      placeholder: "0.1.0"
+      placeholder: "0.2.2"
     validations:
       required: true
   - type: input
@@ -41,7 +41,7 @@ body:
     attributes:
       label: Sober version
       description: "Output of `flatpak info org.vinegarhq.Sober`."
-      placeholder: "1.7.1"
+      placeholder: "1.8.0"
   - type: input
     id: environment
     attributes:
@@ -53,7 +53,7 @@ body:
     id: logs
     attributes:
       label: Relevant logs / terminal output
-      description: Output from running `pigment` in a terminal, if any.
+      description: Output from running `pigmentlab` in a terminal, if any.
       render: shell
   - type: checkboxes
     id: confirmations

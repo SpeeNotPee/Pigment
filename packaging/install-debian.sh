@@ -21,7 +21,7 @@ SKIP_DEPS=0
 # out the workspace manifest below so it cant drift.
 GTK_MIN="4.12"
 ADW_MIN="1.4"
-RUST_MIN="1.96"
+RUST_MIN="1.92"
 
 APT_DEPS=(build-essential pkg-config libgtk-4-dev libadwaita-1-dev git curl)
 
@@ -149,16 +149,15 @@ use_rustup_toolchain() {
 if rust_ok; then
     ok "cargo $(rust_have)  (needs >= $RUST_MIN)"
 else
-    # ts is not an edge case, NO debian or ubuntu release ships a new enough rustc.
-    # verified 2026-08-03: trixie 1.85.0, ubuntu 24.04 1.75, ubuntu 26.04 1.93.1.
-    # so everyone lands here n rustup is basically mandatory
+    #floor is 1.92 now (highest any dep needs). ubuntu 26.04 ships 1.93.1 so it skips
+    #this whole block, but trixie 1.85.0 n ubuntu 24.04 1.75 still land here
     echo
     if [ "$(rust_have)" = 0 ]; then
         warn "no cargo on PATH"
     else
         warn "cargo is $(rust_have), pigment needs >= $RUST_MIN"
     fi
-    echo "    no debian/ubuntu release packages rust that new, so ts needs rustup."
+    echo "    your distro's rust is too old for pigment, so ts needs rustup."
     echo
 
     if ask "install rust via rustup now?"; then
@@ -216,18 +215,25 @@ say "checking sober"
 if ! command -v flatpak >/dev/null; then
     warn "flatpak isnt installed. pigment is js a frontend, sober is what runs roblox"
     if ask "apt install flatpak now?"; then
-        $SUDO apt-get install -y flatpak
-        $SUDO flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+        $SUDO apt-get install -y flatpak || warn "apt install flatpak failed, skipping sober"
     fi
 fi
 
 if command -v flatpak >/dev/null; then
+    #flathub has to exist even if flatpak was already there, else the install below
+    #dies n set -e kills the script right at the finish line
+    if ! flatpak remotes --columns=name 2>/dev/null | grep -qx flathub; then
+        $SUDO flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo \
+            || warn "couldnt add the flathub remote"
+    fi
     if flatpak info org.vinegarhq.Sober >/dev/null 2>&1; then
-        ok "sober $(flatpak info org.vinegarhq.Sober 2>/dev/null | awk '/^ *Version:/{print $2}')"
+        ok "sober $(LC_ALL=C flatpak info org.vinegarhq.Sober 2>/dev/null | awk '/^ *Version:/{print $2}')"
     else
         warn "sober isnt installed"
         if ask "install sober from flathub now?"; then
-            flatpak install -y flathub org.vinegarhq.Sober
+            #optional step, a failure here shouldnt fail the whole run. pigment is installed already
+            flatpak install -y flathub org.vinegarhq.Sober \
+                || warn "sober install failed. later:  flatpak install flathub org.vinegarhq.Sober"
         else
             echo "    later:  flatpak install flathub org.vinegarhq.Sober"
         fi

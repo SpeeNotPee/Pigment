@@ -17,17 +17,58 @@ struct Page {
     title: &'static str,
     icon: &'static str,
     build: fn() -> gtk::Widget,
+    /// rebuild every time its shown. pages that mirror config.json/profiles go stale
+    /// otherwise n "apply" writes back startup values over newer ones (B7)
+    fresh_on_show: bool,
 }
 
 /// The pages, in sidebar order.
 fn pages() -> Vec<Page> {
     vec![
-        Page { id: "home", title: "Home", icon: "applications-games-symbolic", build: home::build },
-        Page { id: "settings", title: "Settings", icon: "emblem-system-symbolic", build: settings::build },
-        Page { id: "fflags", title: "FastFlags", icon: "preferences-other-symbolic", build: fflags::build },
-        Page { id: "mods", title: "Mods", icon: "folder-pictures-symbolic", build: mods::build },
-        Page { id: "profiles", title: "Profiles", icon: "avatar-default-symbolic", build: profiles::build },
-        Page { id: "activity", title: "Activity", icon: "document-open-recent-symbolic", build: activity::build },
+        Page {
+            id: "home",
+            title: "Home",
+            icon: "applications-games-symbolic",
+            build: home::build,
+            fresh_on_show: false,
+        },
+        Page {
+            id: "settings",
+            title: "Settings",
+            //emblem-system is gone from debian 13's adwaita, this one's everywhere
+            icon: "preferences-system-symbolic",
+            build: settings::build,
+            fresh_on_show: true,
+        },
+        Page {
+            id: "fflags",
+            title: "FastFlags",
+            icon: "preferences-other-symbolic",
+            build: fflags::build,
+            fresh_on_show: true,
+        },
+        Page {
+            id: "mods",
+            title: "Mods",
+            icon: "folder-pictures-symbolic",
+            build: mods::build,
+            fresh_on_show: true,
+        },
+        Page {
+            id: "profiles",
+            title: "Profiles",
+            icon: "avatar-default-symbolic",
+            build: profiles::build,
+            fresh_on_show: true,
+        },
+        //activity owns the discord thread, rebuilding would orphan it. built once, lazily
+        Page {
+            id: "activity",
+            title: "Activity",
+            icon: "document-open-recent-symbolic",
+            build: activity::build,
+            fresh_on_show: false,
+        },
     ]
 }
 
@@ -39,9 +80,14 @@ pub fn build_window(app: &adw::Application) -> adw::ApplicationWindow {
     let stack = gtk::Stack::builder()
         .transition_type(gtk::StackTransitionType::Crossfade)
         .build();
+    //every page starts as an empty placeholder n gets built the first time its picked.
+    //b4 this all 6 built at startup = catalog fetch + game name lookups w/o opening em
     for page in &pages {
-        let child = (page.build)();
-        stack.add_titled(&child, Some(page.id), page.title);
+        stack.add_titled(
+            &gtk::Box::new(gtk::Orientation::Vertical, 0),
+            Some(page.id),
+            page.title,
+        );
     }
 
     let content_header = adw::HeaderBar::new();
@@ -89,16 +135,26 @@ pub fn build_window(app: &adw::Application) -> adw::ApplicationWindow {
     // selecting a sidebar row swaps the content stack and updates the title.
     {
         let stack = stack.clone();
-        let ids: Vec<&'static str> = pages.iter().map(|p| p.id).collect();
-        let titles: Vec<&'static str> = pages.iter().map(|p| p.title).collect();
+        let built = std::rc::Rc::new(std::cell::RefCell::new(vec![false; pages.len()]));
+        let pages = std::rc::Rc::new(pages_meta(&pages));
         list.connect_row_selected(move |_, row| {
-            if let Some(row) = row {
-                let i = row.index() as usize;
-                if let (Some(id), Some(title)) = (ids.get(i), titles.get(i)) {
-                    stack.set_visible_child_name(id);
-                    content_title.set_title(title);
+            let Some(row) = row else { return };
+            let i = row.index() as usize;
+            let Some(&(id, title, build, fresh)) = pages.get(i) else {
+                return;
+            };
+            let first = !built.borrow()[i];
+            //dont nuke half typed fastflags just bc u peeked at another page
+            let keep = id == "fflags" && fflags::has_unsaved_edits();
+            if first || (fresh && !keep) {
+                if let Some(old) = stack.child_by_name(id) {
+                    stack.remove(&old);
                 }
+                stack.add_titled(&build(), Some(id), title);
+                built.borrow_mut()[i] = true;
             }
+            stack.set_visible_child_name(id);
+            content_title.set_title(title);
         });
     }
     // Start on Home, unless PIGMENT_START_PAGE names another page
@@ -127,6 +183,15 @@ pub fn build_window(app: &adw::Application) -> adw::ApplicationWindow {
         });
     }
     window
+}
+
+type PageMeta = (&'static str, &'static str, fn() -> gtk::Widget, bool);
+
+fn pages_meta(pages: &[Page]) -> Vec<PageMeta> {
+    pages
+        .iter()
+        .map(|p| (p.id, p.title, p.build, p.fresh_on_show))
+        .collect()
 }
 
 /// sidebar row
@@ -165,22 +230,56 @@ pub(crate) fn launch_binary_path() -> Option<std::path::PathBuf> {
 }
 
 /// Theres a Negev on site on B -ohnepixel
+/// snapshot lives in core now (managed keys only), this is js the string-error wrapper
 pub(crate) fn snapshot_profile(
     name: &str,
     sober: &pigment_core::Sober,
 ) -> Result<pigment_core::Profile, String> {
     let config = pigment_core::Config::load(sober.config_file()).map_err(|e| e.to_string())?;
-    let mut profile = pigment_core::Profile::new(name);
-    for key in config.keys().map(str::to_string).collect::<Vec<_>>() {
-        if key == "fflags" {
-            continue;
+    Ok(pigment_core::Profile::snapshot(name, &config))
+}
+
+/// launch thru the active profile + reap the child. Ok(warning) = launched, maybe w/ a
+/// profile problem worth showing. Err = sober itself didnt start
+pub(crate) fn launch(
+    sober: &pigment_core::Sober,
+    uri: Option<&str>,
+) -> Result<Option<String>, String> {
+    let outcome = pigment_core::launch_with_active_profile(sober, uri);
+    match outcome.child {
+        Ok(child) => {
+            pigment_core::reap(child);
+            Ok(outcome.profile_warning)
         }
-        if let Some(v) = config.get(&key) {
-            profile.settings.insert(key, v.clone());
+        Err(e) => Err(format!("Could not start Sober: {e}")),
+    }
+}
+
+/// yes/no confirm dialog. `on_yes` only runs if they hit the destructive button
+pub(crate) fn confirm(
+    parent: &impl IsA<gtk::Widget>,
+    heading: &str,
+    body: &str,
+    yes_label: &str,
+    on_yes: impl Fn() + 'static,
+) {
+    let window = parent.root().and_downcast::<gtk::Window>();
+    let dialog = adw::MessageDialog::builder()
+        .heading(heading)
+        .body(body)
+        .modal(true)
+        .build();
+    if let Some(w) = window.as_ref() {
+        dialog.set_transient_for(Some(w));
+    }
+    dialog.add_responses(&[("cancel", "Cancel"), ("yes", yes_label)]);
+    dialog.set_response_appearance("yes", adw::ResponseAppearance::Destructive);
+    dialog.set_default_response(Some("cancel"));
+    dialog.set_close_response("cancel");
+    dialog.connect_response(None, move |_, resp| {
+        if resp == "yes" {
+            on_yes();
         }
-    }
-    if let Some(flags) = config.fflags() {
-        profile.fflags = flags.clone();
-    }
-    Ok(profile)
+    });
+    dialog.present();
 }

@@ -53,22 +53,55 @@ pub fn build() -> gtk::Widget {
             status.clone(),
             name_entry.clone(),
         );
-        create.connect_clicked(move |_| {
+        create.connect_clicked(move |btn| {
             let name = name_entry.text().trim().to_string();
             if name.is_empty() {
                 set_error(&status, "Enter a name for the profile.");
                 return;
             }
-            match super::snapshot_profile(&name, &sober) {
-                Ok(profile) => match store.save(&profile) {
-                    Ok(()) => {
-                        name_entry.set_text("");
-                        set_ok(&status, &format!("Saved profile “{name}” from your current setup."));
-                        populate(&list, &store, &sober, &status);
+            if !pigment_core::is_valid_name(&name) {
+                set_error(&status, "Profile names can use letters, numbers, spaces, - _ and . (not first), up to 64 characters.");
+                return;
+            }
+            let exists = store.exists(&name);
+            let (store, sober, list, status, name_entry) = (
+                store.clone(),
+                sober.clone(),
+                list.clone(),
+                status.clone(),
+                name_entry.clone(),
+            );
+            let save = {
+                let name = name.clone();
+                move || {
+                    let mut profile = match super::snapshot_profile(&name, &sober) {
+                        Ok(p) => p,
+                        Err(e) => return set_error(&status, &format!("Could not read current setup: {e}")),
+                    };
+                    //overwriting used to silently drop that profiles mod list. keep it
+                    if let Ok(old) = store.load(&name) {
+                        profile.mods = old.mods;
                     }
-                    Err(e) => set_error(&status, &format!("Could not save profile: {e}")),
-                },
-                Err(e) => set_error(&status, &format!("Could not read current setup: {e}")),
+                    match store.save(&profile) {
+                        Ok(()) => {
+                            name_entry.set_text("");
+                            set_ok(&status, &format!("Saved profile “{name}” from your current setup."));
+                            populate(&list, &store, &sober, &status);
+                        }
+                        Err(e) => set_error(&status, &format!("Could not save profile: {e}")),
+                    }
+                }
+            };
+            if exists {
+                super::confirm(
+                    btn,
+                    &format!("Replace “{name}”?"),
+                    "Its settings and FastFlags get replaced with your current setup. Its mod list is kept.",
+                    "Replace",
+                    save,
+                );
+            } else {
+                save();
             }
         });
     }
@@ -81,7 +114,7 @@ pub fn build() -> gtk::Widget {
     create_row.append(&create);
 
     let intro = gtk::Label::builder()
-        .label("Profiles are applied one at a time. The active profile is applied automatically when you launch Roblox.")
+        .label("Profiles are applied one at a time. The active profile is applied when you make it active and every time you launch Roblox from Pigment or a roblox:// link.")
         .wrap(true)
         .xalign(0.0)
         .css_classes(["dim-label"])
@@ -121,7 +154,7 @@ fn populate(
         let row = adw::ActionRow::builder().title(&name).build();
         if is_active {
             row.set_subtitle("Active — applied on launch");
-            let check = gtk::Image::from_icon_name("emblem-ok-symbolic");
+            let check = gtk::Image::from_icon_name("object-select-symbolic"); //see home.rs status_row, emblem-ok is dead
             row.add_prefix(&check);
         }
 
@@ -135,7 +168,10 @@ fn populate(
                     Ok(rep) => {
                         let mut msg = format!("Applied “{name}”.");
                         if !rep.missing_mods.is_empty() {
-                            msg.push_str(&format!(" Missing mods: {}", rep.missing_mods.join(", ")));
+                            msg.push_str(&format!(
+                                " Missing mods: {}",
+                                rep.missing_mods.join(", ")
+                            ));
                         }
                         msg.push_str(" Restart Roblox to see changes.");
                         set_ok(&status, &msg);
@@ -162,7 +198,26 @@ fn populate(
                     set_error(&status, &format!("Could not set active: {e}"));
                     return;
                 }
-                set_ok(&status, &format!("“{name}” is now the active profile."));
+                //apply right away so config.json matches what the page says is active
+                match store.apply_active(sober.paths()) {
+                    Ok(Some(rep)) if !rep.missing_mods.is_empty() => set_ok(
+                        &status,
+                        &format!(
+                            "“{name}” is now active and applied. Missing mods: {}",
+                            rep.missing_mods.join(", ")
+                        ),
+                    ),
+                    Ok(_) => set_ok(
+                        &status,
+                        &format!(
+                            "“{name}” is now active and applied. Restart Roblox to see changes."
+                        ),
+                    ),
+                    Err(e) => set_error(
+                        &status,
+                        &format!("“{name}” is active, but applying failed: {e}"),
+                    ),
+                }
                 populate(&list, &store, &sober, &status);
             });
         }
@@ -178,13 +233,28 @@ fn populate(
                 status.clone(),
                 name.clone(),
             );
-            delete.connect_clicked(move |_| {
-                if let Err(e) = store.delete(&name) {
-                    set_error(&status, &format!("Could not delete: {e}"));
-                    return;
-                }
-                set_ok(&status, &format!("Deleted “{name}”."));
-                populate(&list, &store, &sober, &status);
+            delete.connect_clicked(move |btn| {
+                let (store, sober, list, status, name) = (
+                    store.clone(),
+                    sober.clone(),
+                    list.clone(),
+                    status.clone(),
+                    name.clone(),
+                );
+                super::confirm(
+                    btn,
+                    &format!("Delete “{name}”?"),
+                    "The profile file is removed. Your mods stay installed.",
+                    "Delete",
+                    move || {
+                        if let Err(e) = store.delete(&name) {
+                            set_error(&status, &format!("Could not delete: {e}"));
+                            return;
+                        }
+                        set_ok(&status, &format!("Deleted “{name}”."));
+                        populate(&list, &store, &sober, &status);
+                    },
+                );
             });
         }
 

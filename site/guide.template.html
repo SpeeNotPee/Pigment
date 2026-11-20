@@ -114,7 +114,7 @@ code.inl { background: var(--sunk); border: 1px solid var(--edge); border-radius
         <div class="prose">
           <ul><li>The <b>Sober</b> Flatpak: <code class="inl">org.vinegarhq.Sober</code></li>
 <li><b>GTK 4.12+</b> and <b>libadwaita 1.4+</b> at runtime</li>
-<li><b>Rust 1.96+</b> and Cargo — only if you build from source. No Debian or Ubuntu release packages a <code class="inl">rustc</code> this new, so use <a href="https://rustup.rs/">rustup</a> there</li>
+<li><b>Rust 1.92+</b> and Cargo — only if you build from source. Debian 13 and Ubuntu 24.04 package an older <code class="inl">rustc</code>, so use <a href="https://rustup.rs/">rustup</a> there; Ubuntu 26.04's is new enough</li>
 <li>Optional: <code class="inl">xdg-utils</code> (to set the default handler) and Discord (for Rich Presence)</li></ul>
         </div>
       </div>
@@ -159,7 +159,7 @@ make install PREFIX=$HOME/.local">copy</button></div>
         <h2>First run</h2>
         <div class="prose">
           <p>Launch <code class="inl">pigmentlab</code> from your app menu or terminal. The <b>Home</b> page shows whether Sober is installed and detected, which <i>build</i> it is, the Roblox client version it has fetched, and whether its config exists yet. Press <span class="kbd">Launch Roblox</span> to start Sober. If Sober has never run, open it once so it can create its configuration — then the Settings, FastFlags and other pages light up.</p>
-          <p>Home also checks Flathub in the background and shows a banner when a newer Sober build is available. This matters more than it sounds: VinegarHQ ships Sober as periodic <b>refreshes</b> that keep the same version number — 1.7.1 has been rebuilt roughly weekly — and Roblox rejects clients that fall behind. A version match is not proof you are current, so Pigment compares the Flatpak commit instead.</p>
+          <p>Home also checks Flathub in the background and shows a banner when a newer Sober build is available. This matters more than it sounds: VinegarHQ ships Sober as periodic <b>refreshes</b> that keep the same version number — 1.7.1 was rebuilt roughly weekly, and 1.8.0 follows the same pattern — and Roblox rejects clients that fall behind. A version match is not proof you are current, so Pigment compares the Flatpak commit instead.</p>
         </div>
       </div>
     </section>
@@ -287,7 +287,7 @@ make install PREFIX=$HOME/.local">copy</button></div>
           <h3 id="sober-is-not-installed">“Sober is not installed”</h3>
           <p>Install the Flatpak: <code class="inl">flatpak install flathub org.vinegarhq.Sober</code>, then relaunch Pigment.</p>
           <h3 id="roblox-won-t-launch-or-rejects-the-client">Roblox won’t launch, or rejects the client</h3>
-          <p>Usually a stale Sober build. The version number stays <code class="inl">1.7.1</code> across refreshes, so
+          <p>Usually a stale Sober build. The version number (currently <code class="inl">1.8.0</code>) stays the same across refreshes, so
   <i>check the build date on Home, not the version</i> — if Pigment shows the update banner, run
   <code class="inl">flatpak update org.vinegarhq.Sober</code> and try again.</p>
           <h3 id="settings-fastflags-say-there-s-no-config">Settings/FastFlags say there’s no config</h3>
@@ -296,7 +296,11 @@ make install PREFIX=$HOME/.local">copy</button></div>
           <p>Pigment refreshes the desktop and (on KDE) the service cache automatically. If a link still opens the wrong
   app, toggle the switch off and on again.</p>
           <h3 id="discord-presence-won-t-connect">Discord presence won’t connect</h3>
-          <p>Make sure the Discord desktop app is running before enabling the toggle. Flatpak/Snap Discord is supported.</p>
+          <p>Pigment keeps retrying while the toggle is on, so it connects as soon as Discord starts, and reconnects if Discord restarts. Native, Flatpak (Discord, Canary, Vesktop) and Snap Discord are supported.</p>
+          <h3 id="a-mod-or-preset-does-nothing">A mod or preset does nothing</h3>
+          <p>Mod files only work if Roblox still ships a file at that path. Roblox 2.745 (shipped with Sober 1.8) removed most assets from the APK — including every sound — and now downloads them on demand, so older sound mods may have no effect. The Mods page counts how many of a mod’s files match this Roblox version and flags downloadable presets whose targets are gone.</p>
+          <h3 id="uninstalling">Uninstalling</h3>
+          <p>If you made Pigment the default launcher, run <code class="inl">pigment-launch --unregister</code> as your user first (a per-user <code class="inl">make uninstall</code> does this for you). It hands <code class="inl">roblox://</code> back to whatever owned it before and deletes Pigment’s launcher entry.</p>
         </div>
       </div>
     </section>
@@ -362,8 +366,11 @@ make install PREFIX=$HOME/.local">copy</button></div>
         <h2>Privacy</h2>
         <div class="prose">
           <p>Pigment is a local desktop app with <b>no servers, accounts, analytics, or telemetry</b> — the
-  developers receive none of your data. It makes network requests only for two things:</p>
-          <ul><li>resolving game names from Roblox’s public API (it sends a public universe id, never personal data); and</li>
+  developers receive none of your data. It makes network requests only for these:</p>
+          <ul><li>the Sober update check on the Home page (<code>flatpak remote-info</code> asks Flathub for the newest build);</li>
+    <li>resolving game names from Roblox’s public API (it sends a public universe id, never personal data);</li>
+    <li>the downloadable-preset catalog, fetched from GitHub the first time you open the Mods page;</li>
+    <li>preset files, downloaded only when you click Install and checked against pinned SHA-256 checksums; and</li>
     <li>optional Discord Rich Presence, which talks to your <b>local</b> Discord client only.</li></ul>
           <p>Your configuration, FastFlags, mods, and logs never leave your machine. Read the full
   <a href="https://github.com/SpeeNotPee/Pigment/blob/main/PRIVACY.md">Privacy Notice</a>.</p>

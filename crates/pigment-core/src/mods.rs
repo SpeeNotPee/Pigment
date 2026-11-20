@@ -17,24 +17,17 @@ pub struct ApkAssetTree {
 impl ApkAssetTree {
     pub fn read(apk_path: impl AsRef<Path>) -> io::Result<Self> {
         let file = fs::File::open(apk_path.as_ref())?;
-        let mut zip = zip::ZipArchive::new(file)
+        let zip = zip::ZipArchive::new(file)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
 
-        let mut files = BTreeSet::new();
-        for i in 0..zip.len() {
-            let entry = zip
-                .by_index(i)
-                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-            let name = entry.name();
-            if entry.is_dir() {
-                continue;
-            }
-            if let Some(rel) = name.strip_prefix(APK_ASSETS_PREFIX) {
-                if !rel.is_empty() {
-                    files.insert(rel.to_string());
-                }
-            }
-        }
+        //central directory only. by_index used to seek to every local header, slow af on a 100MB apk
+        let files = zip
+            .file_names()
+            .filter(|name| !name.ends_with('/'))
+            .filter_map(|name| name.strip_prefix(APK_ASSETS_PREFIX))
+            .filter(|rel| !rel.is_empty())
+            .map(str::to_string)
+            .collect::<BTreeSet<_>>();
         Ok(Self { files })
     }
 
@@ -114,6 +107,10 @@ pub fn detect_conflicts(mods: &[ModSource]) -> io::Result<Vec<Conflict>> {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ComposeReport {
     pub winners: BTreeMap<String, String>,
+    /// set the one time i moved a hand made overlay outta the way
+    pub backed_up: Option<PathBuf>,
+    /// mod files i didnt write bc a hand placed overlay file already sits there
+    pub blocked_by_unmanaged: Vec<String>,
 }
 
 impl ComposeReport {
@@ -123,19 +120,118 @@ impl ComposeReport {
     }
 }
 
+/// the list of overlay files pigment put there, so recompose only deletes OUR stuff.
+/// sobers overlay is a documented folder ppl drop files in by hand, wiping it = rude
+pub const MANIFEST_NAME: &str = ".pigment-manifest.json";
+
+/// where i stash a pre-existing hand-made overlay the first time pigment takes over
+pub const PRE_PIGMENT_BACKUP: &str = "asset_overlay.pre-pigment";
+
+#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
+struct Manifest {
+    #[serde(default)]
+    files: Vec<String>,
+}
+
+fn manifest_path(overlay_dir: &Path) -> PathBuf {
+    overlay_dir.join(MANIFEST_NAME)
+}
+
+fn read_manifest(overlay_dir: &Path) -> Option<Manifest> {
+    let text = fs::read_to_string(manifest_path(overlay_dir)).ok()?;
+    serde_json::from_str(&text).ok()
+}
+
+fn write_manifest(overlay_dir: &Path, files: Vec<String>) -> io::Result<()> {
+    let json = serde_json::to_vec_pretty(&Manifest { files })?;
+    crate::util::write_atomic(&manifest_path(overlay_dir), &json)
+}
+
+/// overlay files pigment dont own: hand placed ones. manifest + junk excluded
+pub fn unmanaged_overlay_files(overlay_dir: impl AsRef<Path>) -> io::Result<Vec<String>> {
+    let overlay_dir = overlay_dir.as_ref();
+    if !overlay_dir.is_dir() {
+        return Ok(Vec::new());
+    }
+    let ours: BTreeSet<String> = read_manifest(overlay_dir)
+        .map(|m| m.files.into_iter().collect())
+        .unwrap_or_default();
+    let mut all = Vec::new();
+    collect_files(overlay_dir, overlay_dir, &mut all)?;
+    all.retain(|f| f != MANIFEST_NAME && !ours.contains(f));
+    all.sort();
+    Ok(all)
+}
+
+/// first run w/ a non-empty overlay n no manifest = someone made it by hand. i move it
+/// next door ONCE (never overwrite an old backup) n return where it went so the ui can say so
+fn adopt_overlay(overlay_dir: &Path) -> io::Result<Option<PathBuf>> {
+    if !overlay_dir.is_dir() || manifest_path(overlay_dir).exists() {
+        return Ok(None);
+    }
+    let mut existing = Vec::new();
+    collect_files(overlay_dir, overlay_dir, &mut existing)?;
+    if existing.is_empty() {
+        return Ok(None);
+    }
+    let backup = overlay_dir.with_file_name(PRE_PIGMENT_BACKUP);
+    if backup.exists() {
+        //already backed up once b4, the rest is unmanaged n stays put
+        return Ok(None);
+    }
+    fs::rename(overlay_dir, &backup)?;
+    fs::create_dir_all(overlay_dir)?;
+    Ok(Some(backup))
+}
+
+/// delete the files the manifest says r ours, then prune empty dirs they left
+fn remove_managed(overlay_dir: &Path) -> io::Result<()> {
+    let Some(m) = read_manifest(overlay_dir) else {
+        return Ok(());
+    };
+    for rel in m.files {
+        if !crate::library::is_safe_rel_path(&rel) {
+            continue;
+        }
+        let p = overlay_dir.join(&rel);
+        match fs::remove_file(&p) {
+            Ok(()) => prune_empty_parents(overlay_dir, &p),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => {}
+            Err(e) => return Err(e),
+        }
+    }
+    Ok(())
+}
+
+fn prune_empty_parents(root: &Path, file: &Path) {
+    let mut dir = file.parent();
+    while let Some(d) = dir {
+        if d == root || !d.starts_with(root) || fs::remove_dir(d).is_err() {
+            break;
+        }
+        dir = d.parent();
+    }
+}
+
 pub fn compose_overlay(
     overlay_dir: impl AsRef<Path>,
     ordered_mods: &[ModSource],
 ) -> io::Result<ComposeReport> {
     let overlay_dir = overlay_dir.as_ref();
-    if overlay_dir.exists() {
-        fs::remove_dir_all(overlay_dir)?;
-    }
+    let backed_up = adopt_overlay(overlay_dir)?;
     fs::create_dir_all(overlay_dir)?;
+    remove_managed(overlay_dir)?;
 
+    let unmanaged: BTreeSet<String> = unmanaged_overlay_files(overlay_dir)?.into_iter().collect();
     let mut winners = BTreeMap::new();
+    let mut skipped = Vec::new();
     for m in ordered_mods {
         for rel in m.files()? {
+            //a hand placed file wins over mods. i report it instead of stomping on it
+            if unmanaged.contains(&rel) {
+                skipped.push(rel);
+                continue;
+            }
             let dest = overlay_dir.join(&rel);
             if let Some(parent) = dest.parent() {
                 fs::create_dir_all(parent)?;
@@ -144,16 +240,19 @@ pub fn compose_overlay(
             winners.insert(rel, m.name.clone());
         }
     }
-    Ok(ComposeReport { winners })
+    write_manifest(overlay_dir, winners.keys().cloned().collect())?;
+    skipped.sort();
+    skipped.dedup();
+    Ok(ComposeReport {
+        winners,
+        backed_up,
+        blocked_by_unmanaged: skipped,
+    })
 }
 
+/// take out everything pigment placed. hand placed files stay
 pub fn clear_overlay(overlay_dir: impl AsRef<Path>) -> io::Result<()> {
-    let overlay_dir = overlay_dir.as_ref();
-    if overlay_dir.exists() {
-        fs::remove_dir_all(overlay_dir)?;
-    }
-    fs::create_dir_all(overlay_dir)?;
-    Ok(())
+    compose_overlay(overlay_dir, &[]).map(|_| ())
 }
 
 fn collect_files(base: &Path, dir: &Path, out: &mut Vec<String>) -> io::Result<()> {
@@ -228,7 +327,11 @@ mod tests {
     fn mod_lists_its_files_relative_to_root() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().join("darkcursor");
-        write_file(&root, "content/textures/Cursors/KeyboardMouse/ArrowCursor.png", b"x");
+        write_file(
+            &root,
+            "content/textures/Cursors/KeyboardMouse/ArrowCursor.png",
+            b"x",
+        );
         write_file(&root, "content/sounds/ouch.ogg", b"y");
 
         let m = ModSource::new("darkcursor", &root);
@@ -312,7 +415,10 @@ mod tests {
 
         let report = compose_overlay(&overlay, &[]).unwrap();
         assert_eq!(report.file_count(), 0);
-        assert!(!overlay.join("content/x.png").exists(), "stale file lingered");
+        assert!(
+            !overlay.join("content/x.png").exists(),
+            "stale file lingered"
+        );
     }
 
     #[test]
@@ -325,6 +431,49 @@ mod tests {
 
         clear_overlay(&overlay).unwrap();
         assert!(overlay.exists());
-        assert_eq!(fs::read_dir(&overlay).unwrap().count(), 0);
+        assert!(!overlay.join("content/x.png").exists());
+        assert!(unmanaged_overlay_files(&overlay).unwrap().is_empty());
+    }
+
+    #[test]
+    fn hand_placed_overlay_is_backed_up_once_then_left_alone() {
+        let dir = tempfile::tempdir().unwrap();
+        let overlay = dir.path().join("asset_overlay");
+        write_file(&overlay, "content/hand.png", b"mine");
+        let a = dir.path().join("a");
+        write_file(&a, "content/x.png", b"a");
+
+        //first compose adopts: moves the hand made overlay next door
+        let rep = compose_overlay(&overlay, &[ModSource::new("a", &a)]).unwrap();
+        let backup = rep.backed_up.expect("should have backed up");
+        assert_eq!(fs::read(backup.join("content/hand.png")).unwrap(), b"mine");
+        assert!(overlay.join("content/x.png").exists());
+
+        //after that, new hand placed files survive every recompose
+        write_file(&overlay, "content/later.png", b"mine2");
+        let rep = compose_overlay(&overlay, &[]).unwrap();
+        assert!(rep.backed_up.is_none());
+        assert_eq!(
+            fs::read(overlay.join("content/later.png")).unwrap(),
+            b"mine2"
+        );
+        assert!(!overlay.join("content/x.png").exists());
+        assert_eq!(
+            unmanaged_overlay_files(&overlay).unwrap(),
+            vec!["content/later.png".to_string()]
+        );
+    }
+
+    #[test]
+    fn unmanaged_file_beats_a_mod_and_gets_reported() {
+        let dir = tempfile::tempdir().unwrap();
+        let overlay = dir.path().join("asset_overlay");
+        compose_overlay(&overlay, &[]).unwrap(); //creates manifest so no adopt
+        write_file(&overlay, "content/x.png", b"hand");
+        let a = dir.path().join("a");
+        write_file(&a, "content/x.png", b"mod");
+        let rep = compose_overlay(&overlay, &[ModSource::new("a", &a)]).unwrap();
+        assert_eq!(rep.blocked_by_unmanaged, vec!["content/x.png".to_string()]);
+        assert_eq!(fs::read(overlay.join("content/x.png")).unwrap(), b"hand");
     }
 }

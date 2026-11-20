@@ -21,7 +21,7 @@
     <p>What it does:</p>
     <ul>
       <li>Settings: a typed interface over every Sober configuration key</li>
-      <li>Profiles: named setups applied one at a time, automatically on launch</li>
+      <li>Profiles: named setups applied one at a time, when activated and on every launch</li>
       <li>FastFlags: a validating JSON editor in Bloxstrap's exact format</li>
       <li>Mods: file overlays via Sober's sanctioned asset overlay, validated against the Roblox asset tree</li>
       <li>Default launcher: opt-in, reversible takeover of the roblox:// handler</li>
@@ -78,6 +78,26 @@
   </content_rating>
 
   <releases>
+    <release version="0.2.2" date="2026-11-20">
+      <description>
+        <p>Compatibility with Sober 1.8 (Roblox 2.745) and fixes from the issue #1 review.</p>
+        <ul>
+          <li>FastFlags and Settings edits are saved into the active profile, so applying a profile no longer reverts them</li>
+          <li>Every launch button applies the active profile; making a profile active applies it immediately</li>
+          <li>Mod and profile names are validated; unsafe names are refused</li>
+          <li>Hand-placed files in Sober's asset overlay are preserved (backed up once, then left alone)</li>
+          <li>Switching back restores the previous roblox:// handler; pigment-launch --unregister cleans up after uninstalling</li>
+          <li>Leaving a game is detected reliably; Discord presence reconnects on its own</li>
+          <li>Presets whose files this Roblox version no longer ships are flagged</li>
+          <li>Note: the v0.2.1 tag predates the presets feature; build from v0.2.2 or later</li>
+        </ul>
+      </description>
+    </release>
+    <release version="0.2.1" date="2026-08-07">
+      <description>
+        <p>Preset mods, custom UI font, downloadable preset catalog, and rejoin buttons.</p>
+      </description>
+    </release>
     <release version="0.2.0" date="2026-07-16">
       <description>
         <p>

@@ -32,11 +32,11 @@ safely rewriting its config, composing mods into its overlay, launching it, and
 ## Requirements
 
 - The Sober Flatpak: `flatpak install flathub org.vinegarhq.Sober`
-- GTK 4 (**≥ 4.12**) and libadwaita (**≥ 1.4**) at runtime; Rust **≥ 1.96** and
+- GTK 4 (**≥ 4.12**) and libadwaita (**≥ 1.4**) at runtime; Rust **≥ 1.92** and
   Cargo to build.
 
 > **Keep Sober updated.** VinegarHQ republishes Sober as periodic *refreshes*
-> that keep the same version number (1.7.1 has been rebuilt roughly weekly), and
+> that keep the same version number (1.7.1 was rebuilt roughly weekly; 1.8.0 follows the same pattern), and
 > Roblox rejects clients that fall behind. Pigment's Home page tells you when
 > your build is stale; `flatpak update org.vinegarhq.Sober` fixes it.
 
@@ -94,14 +94,14 @@ building** (so an unsupported release fails in seconds instead of minutes into
 lists the flags.
 
 Needs **Debian 13 (Trixie)**, **Ubuntu 24.04**, or newer — verified working on
-Debian 13 and Ubuntu 26.04. Expect the rustup step every time: no Debian or
-Ubuntu release packages a `rustc` new enough for the 1.96 floor, not even 26.04
-(1.93.1). See [COMPATIBILITY.md](COMPATIBILITY.md).
+Debian 13 and Ubuntu 26.04. Debian 13 and Ubuntu 24.04 need the rustup step
+(their `rustc` is below the 1.92 floor); Ubuntu 26.04's packaged 1.93.1 is new
+enough. See [COMPATIBILITY.md](COMPATIBILITY.md).
 
 ### Other distributions
 
 No Flatpak, no `.deb`. Build from source with `make install` above; you need
-GTK 4.12+, libadwaita 1.4+, and Rust 1.96+ on the host.
+GTK 4.12+, libadwaita 1.4+, and Rust 1.92+ on the host.
 
 ## Layout
 

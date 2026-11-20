@@ -6,11 +6,11 @@ down to three version floors:
 | Component | Minimum | Why |
 |---|---|---|
 | **GTK 4** | **≥ 4.12** | The GUI is built against the GTK 4.12 API (`v4_12`). |
-| **libadwaita** | **≥ 1.4** | Uses libadwaita 1.4 widgets (e.g. `AboutWindow`). |
-| **Rust** | **≥ 1.96** | Needed only to *build* from source. |
+| **libadwaita** | **≥ 1.4** | Uses libadwaita 1.4 widgets (`NavigationSplitView`, `ToolbarView`, `SwitchRow`). |
+| **Rust** | **≥ 1.92** | Needed only to *build* from source. 1.92 is the highest `rust-version` any locked dependency declares (the gtk-rs crates); verified by building and testing on 1.92. |
 | **Flatpak** | any | Runtime dependency only — Pigment is not a Flatpak, but it drives the Sober one. |
 
-> **Rust note:** most distributions' packaged `rustc` is older than 1.96.
+> **Rust note:** many distributions' packaged `rustc` is older than 1.92.
 > If your build fails on the toolchain version, install Rust with
 > [rustup](https://rustup.rs/) (`rustup default stable`) and build again.
 
@@ -58,10 +58,9 @@ additionally verified end-to-end on real hardware 2026-08-03 —
 **Rule of thumb:** anything on an **Ubuntu 24.04 base or newer**, or **Debian 13
 or newer**, works. The 22.04 / Debian 12 generation does not.
 
-> **No Debian or Ubuntu release packages a new enough `rustc`** — not even the
-> newest. Verified 2026-08-03: Debian 13 ships **1.85.0**, Ubuntu 24.04 **1.75.0**,
-> Ubuntu 26.04 **1.93.1**, all below the **1.96** floor. So the rustup step is
-> universal here, not an edge case. `rustup` itself *is* packaged
+> **Most Debian and Ubuntu releases need rustup.** Verified 2026-08-03: Debian 13
+> ships **1.85.0** and Ubuntu 24.04 **1.75.0**, both below the **1.92** floor.
+> Ubuntu 26.04's **1.93.1** meets it, so it builds with the packaged toolchain. `rustup` itself *is* packaged
 > (`apt install rustup`), and the install script prefers that over piping
 > `sh.rustup.rs` into a shell.
 

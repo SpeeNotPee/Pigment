@@ -33,7 +33,6 @@ impl BuildInfo {
     }
 }
 
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LaunchSpec {
     pub program: String,
@@ -114,13 +113,24 @@ impl Sober {
         self.launch_spec(uri).to_command().spawn()
     }
 
+    /// open sobers own settings window (the `config` subcommand its desktop action uses)
+    pub fn open_settings(&self) -> std::io::Result<std::process::Child> {
+        self.settings_spec().to_command().spawn()
+    }
+
     /// Whether the Sober Flatpak is installed, by asking `flatpak info`.
     pub fn is_installed(&self) -> bool {
         self.flatpak_output(&["info", SOBER_APP_ID]).is_some()
     }
 
     fn flatpak_output(&self, extra: &[&str]) -> Option<String> {
-        let out = Command::new(&self.flatpak_bin).args(extra).output().ok()?;
+        //labels like `Version:` get translated, so force english or the parser finds nothing.
+        //ONLY here tho - on `flatpak run` it would flip roblox's language too
+        let out = Command::new(&self.flatpak_bin)
+            .args(extra)
+            .env("LC_ALL", "C")
+            .output()
+            .ok()?;
         out.status
             .success()
             .then(|| String::from_utf8_lossy(&out.stdout).into_owned())
@@ -169,7 +179,6 @@ impl Sober {
     }
 }
 
-
 fn parse_field(info: &str, field: &str) -> Option<String> {
     let prefix = format!("{field}:");
     info.lines()
@@ -188,7 +197,9 @@ fn parse_build(info: &str) -> BuildInfo {
     BuildInfo {
         version: parse_version(info),
         commit: parse_field(info, "Commit"),
-        build: parse_field(info, "Subject").as_deref().and_then(parse_build_tag),
+        build: parse_field(info, "Subject")
+            .as_deref()
+            .and_then(parse_build_tag),
         // `Date: 2026-07-28 00:04:56 +0000` — keep the day, drop the clock.
         date: parse_field(info, "Date").map(|d| {
             d.split_whitespace()
@@ -209,7 +220,8 @@ fn parse_build_tag(subject: &str) -> Option<String> {
             };
             let d: Vec<&str> = date.split('-').collect();
             d.len() == 3
-                && d.iter().all(|p| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit()))
+                && d.iter()
+                    .all(|p| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit()))
                 && !hash.is_empty()
                 && hash.bytes().all(|b| b.is_ascii_hexdigit())
         })
@@ -220,11 +232,30 @@ fn parse_build_tag(subject: &str) -> Option<String> {
 /// heads up: job ids die when the server shuts down, roblox will js error at u. not my problem
 pub fn join_uri(place_id: u64, job_id: Option<&str>) -> String {
     match job_id {
-        Some(job) if !job.is_empty() => {
+        //only a real guid goes in the url, anything else from the log gets dropped
+        Some(job) if is_guid(job) => {
             format!("roblox://experiences/start?placeId={place_id}&gameInstanceId={job}")
         }
         _ => format!("roblox://experiences/start?placeId={place_id}"),
     }
+}
+
+/// 8-4-4-4-12 hex, the only shape a roblox job id takes
+fn is_guid(s: &str) -> bool {
+    let parts: Vec<&str> = s.split('-').collect();
+    parts.len() == 5
+        && parts
+            .iter()
+            .zip([8, 4, 4, 4, 12])
+            .all(|(p, n)| p.len() == n && p.bytes().all(|b| b.is_ascii_hexdigit()))
+}
+
+/// wait on a launched child from a throwaway thread so it dont sit there as a zombie
+/// til pigment quits. flatpak run exits fast-ish anyway, its js the bookkeeping
+pub fn reap(mut child: std::process::Child) {
+    std::thread::spawn(move || {
+        let _ = child.wait();
+    });
 }
 
 /// Read `v1.app_version` — the Roblox client version — from Sober's state file.
@@ -295,7 +326,10 @@ Installed Size: 18.0 MB\n\
 
     #[test]
     fn version_absent_yields_none() {
-        assert_eq!(parse_version("ID: org.vinegarhq.Sober\nArch: x86_64\n"), None);
+        assert_eq!(
+            parse_version("ID: org.vinegarhq.Sober\nArch: x86_64\n"),
+            None
+        );
     }
 
     #[test]
@@ -360,6 +394,15 @@ Installed Size: 18.0 MB\n\
             join_uri(5, Some("")),
             "roblox://experiences/start?placeId=5"
         );
+        //injection attempts just get dropped
+        assert_eq!(
+            join_uri(5, Some("x&launchData=evil")),
+            "roblox://experiences/start?placeId=5"
+        );
+        assert_eq!(
+            join_uri(5, Some("135d0895-503a-4884-885e-c963758024e3&a=b")),
+            "roblox://experiences/start?placeId=5"
+        );
     }
 
     #[test]
@@ -374,6 +417,19 @@ Installed Size: 18.0 MB\n\
         assert_eq!(parse_roblox_version(r#"{"v2": {}}"#), None);
         assert_eq!(parse_roblox_version(r#"{"v1": {"app_version": ""}}"#), None);
         assert_eq!(parse_roblox_version("not json"), None);
+    }
+
+    #[test]
+    fn parses_sober_1_8_refresh() {
+        //straight from `flatpak info` on sober 1.8.0, 2026-11-19
+        let info = "       Version: 1.8.0\n        Origin: flathub\n        Commit: a611b863277f7d33c448111a728c857b8a92cac006da0d33f6d053b1e585106a\n       Subject: Update Sober to 2026-11-05_c107424 (1.8.0 refresh) (01a28a7acd44)\n          Date: 2026-11-06 00:12:47 +0000\n";
+        let b = parse_build(info);
+        assert_eq!(b.version.as_deref(), Some("1.8.0"));
+        assert_eq!(b.build.as_deref(), Some("2026-11-05_c107424"));
+        assert_eq!(b.label().as_deref(), Some("1.8.0 (build 2026-11-05)"));
+        let state =
+            r#"{"v1":{"app_version":"2.745.1142","fullscreen":true},"v6":{"roblox_uid":0}}"#;
+        assert_eq!(parse_roblox_version(state).as_deref(), Some("2.745.1142"));
     }
 
     #[test]

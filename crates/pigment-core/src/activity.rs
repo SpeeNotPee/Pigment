@@ -43,21 +43,70 @@ pub enum Status {
     Idle,
 }
 
-/// Parse all sessions from a log file, oldest first..
-pub fn sessions_from_file(path: impl AsRef<Path>) -> io::Result<Vec<Session>> {
-    match fs::read_to_string(path.as_ref()) {
-        Ok(text) => Ok(sessions(&text)),
-        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(Vec::new()),
-        Err(e) => Err(e),
+/// Parse all sessions from a log file, oldest first. `live` = this is the log sober is
+/// writing rn (what latest.log points at). any other log is dead, so whatever was still
+/// open in it gets closed at its last timestamp instead of being "in progress" forever
+pub fn sessions_from_file(path: impl AsRef<Path>, live: bool) -> io::Result<Vec<Session>> {
+    let bytes = match fs::read(path.as_ref()) {
+        Ok(b) => b,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(e) => return Err(e),
+    };
+    //lossy bc 1 weird byte from a game used to fail the whole read = "not in a game"
+    let text = String::from_utf8_lossy(&bytes);
+    let (mut out, last) = parse(&text);
+    if !live {
+        close_open(&mut out, last);
     }
+    Ok(out)
+}
+
+/// every session across every log in the dir, newest first, capped at `max`
+pub fn recent_sessions(log_dir: &Path, max: usize) -> Vec<Session> {
+    let live = fs::canonicalize(log_dir.join("latest.log")).ok();
+    let mut all = Vec::new();
+    if let Ok(entries) = fs::read_dir(log_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            //skip the latest.log symlink itself, its target gets read anyway
+            if path.extension().and_then(|e| e.to_str()) == Some("log")
+                && path.file_name().and_then(|n| n.to_str()) != Some("latest.log")
+            {
+                let is_live = live.is_some() && fs::canonicalize(&path).ok() == live;
+                all.extend(sessions_from_file(&path, is_live).unwrap_or_default());
+            }
+        }
+    }
+    all.sort_by_key(|s| (s.joined_at.is_none(), std::cmp::Reverse(s.joined_at)));
+    all.truncate(max);
+    all
 }
 
 /// Parse sessions from log text, oldest first.
 pub fn sessions(log: &str) -> Vec<Session> {
+    parse(log).0
+}
+
+fn close_open(sessions: &mut [Session], at: Option<OffsetDateTime>) {
+    if let Some(last) = sessions.last_mut() {
+        if last.left_at.is_none() {
+            last.left_at = at.or(last.joined_at);
+        }
+    }
+}
+
+/// the actual parser. also hands back the last timestamp seen so dead logs can be closed
+fn parse(log: &str) -> (Vec<Session>, Option<OffsetDateTime>) {
     let mut out: Vec<Session> = Vec::new();
+    let mut last_ts: Option<OffsetDateTime> = None;
     for line in log.lines() {
+        let ts = parse_timestamp(line);
+        if ts.is_some() {
+            last_ts = ts;
+        }
         if let Some((place_id, job_id, at)) = parse_join(line) {
-            // A new join closes any still open session implicitly
+            //new join kills whatever session was still open. sober dont always log a leave
+            close_open(&mut out, at.or(last_ts));
             out.push(Session {
                 place_id,
                 job_id,
@@ -66,23 +115,18 @@ pub fn sessions(log: &str) -> Vec<Session> {
                 left_at: None,
             });
         } else if let Some(universe_id) = parse_join_detail(line) {
-            // Attach the universe id to the most recent join.
+            //bolt the uni id onto the most recent join. first one fine, rest ignored
             if let Some(last) = out.last_mut() {
                 if last.universe_id.is_none() {
                     last.universe_id = Some(universe_id);
                 }
             }
         } else if is_leave(line) {
-            if let Some(ts) = parse_timestamp(line) {
-                if let Some(last) = out.last_mut() {
-                    if last.left_at.is_none() {
-                        last.left_at = Some(ts);
-                    }
-                }
-            }
+            //onGameLeaveBegin lines got no `Roblox: <ts>`, so borrow the last one i saw
+            close_open(&mut out, ts.or(last_ts));
         }
     }
-    out
+    (out, last_ts)
 }
 
 pub fn current_status(log: &str) -> Status {
@@ -95,7 +139,6 @@ pub fn current_status(log: &str) -> Status {
         _ => Status::Idle,
     }
 }
-
 
 fn parse_join(line: &str) -> Option<(u64, String, Option<OffsetDateTime>)> {
     let rest = line.split_once("! Joining game '")?.1;
@@ -179,7 +222,10 @@ mod tests {
         assert_eq!(s[0].universe_id, Some(6035872082));
         assert!(!s[0].is_active());
         let dur = s[0].duration().unwrap();
-        assert!(dur.whole_seconds() > 150 && dur.whole_seconds() < 160, "{dur}");
+        assert!(
+            dur.whole_seconds() > 150 && dur.whole_seconds() < 160,
+            "{dur}"
+        );
     }
 
     #[test]
@@ -189,7 +235,11 @@ mod tests {
         assert_eq!(s.len(), 1);
         assert!(s[0].is_active());
         match current_status(&log) {
-            Status::InGame { place_id, universe_id, .. } => {
+            Status::InGame {
+                place_id,
+                universe_id,
+                ..
+            } => {
                 assert_eq!(place_id, 17625359962);
                 assert_eq!(universe_id, Some(6035872082));
             }
@@ -201,6 +251,57 @@ mod tests {
     fn idle_when_last_session_closed() {
         let log = [JOIN, DETAIL, LEAVE].join("\n");
         assert_eq!(current_status(&log), Status::Idle);
+    }
+
+    const JNI_LEAVE: &str = "debug: rbx.jni: onGameLeaveBegin() SessionReporterState_GameExitRequested placeId:17625359962";
+    const LATER: &str =
+        "info: Roblox: 2026-07-06T18:20:00.000Z,9.0,1773f6c0,6 [FLog::Output] whatever";
+
+    #[test]
+    fn join_then_join_closes_the_first() {
+        let join2 = "info: Roblox: 2026-07-06T18:12:29.083Z,16.08,1c41f6c0,6 [FLog::Output] ! Joining game 'ff9cd0a6-6c4f-4bde-93fb-b45d1b0d86c1' place 999 at 10.18.6.146";
+        let s = sessions(&[JOIN, join2].join("\n"));
+        assert_eq!(s.len(), 2);
+        assert!(!s[0].is_active());
+        assert_eq!(s[0].left_at, s[1].joined_at);
+        assert!(s[1].is_active());
+    }
+
+    #[test]
+    fn timestampless_jni_leave_closes_the_session() {
+        let s = sessions(&[JOIN, DETAIL, LATER, JNI_LEAVE].join("\n"));
+        assert_eq!(s.len(), 1);
+        assert!(!s[0].is_active(), "onGameLeaveBegin never fired");
+        assert_eq!(s[0].left_at, parse_timestamp(LATER));
+    }
+
+    #[test]
+    fn dead_log_that_ends_mid_game_is_closed() {
+        let dir = tempfile::tempdir().unwrap();
+        let old = dir.path().join("2026-07-06_18-00-00.log");
+        fs::write(&old, [JOIN, DETAIL, LATER].join("\n")).unwrap();
+        let live = dir.path().join("2026-07-07_10-00-00.log");
+        fs::write(&live, [JOIN, DETAIL].join("\n")).unwrap();
+        std::os::unix::fs::symlink(&live, dir.path().join("latest.log")).unwrap();
+
+        assert!(!sessions_from_file(&old, false).unwrap()[0].is_active());
+        let all = recent_sessions(dir.path(), 10);
+        assert_eq!(all.len(), 2);
+        assert_eq!(
+            all.iter().filter(|s| s.is_active()).count(),
+            1,
+            "only the live log may stay open"
+        );
+    }
+
+    #[test]
+    fn non_utf8_log_still_parses() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("x.log");
+        let mut bytes = JOIN.as_bytes().to_vec();
+        bytes.extend_from_slice(b"\n\xff\xfe garbage\n");
+        fs::write(&p, bytes).unwrap();
+        assert_eq!(sessions_from_file(&p, true).unwrap().len(), 1);
     }
 
     #[test]

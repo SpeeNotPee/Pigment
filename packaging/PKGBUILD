@@ -1,36 +1,48 @@
-# Maintainer: Pigment contributors
-pkgname=pigment
-pkgver=0.2.0
+# Maintainer: SpeeNotPee <heckingmaster666@gmail.com>
+#repo copy of the aur pkg. same name as the aur one, cuz plain `pigment` is someone elses app
+pkgname=pigment-launcher
+_srcname=Pigment
+pkgver=0.2.2
 pkgrel=1
 pkgdesc="Roblox launcher and manager for Linux (drives the Sober runtime)"
-arch=('x86_64' 'aarch64')
+#sober dropped arm in sept 2026, so x86_64 is the only arch that can actually run roblox
+arch=('x86_64')
 url="https://github.com/SpeeNotPee/Pigment"
 license=('MIT')
 depends=('gtk4' 'libadwaita')
-option=('!lto')
-makedepends=('rust' 'cargo')
+makedepends=('cargo' 'git')
 optdepends=('flatpak: required to install and run the Sober runtime'
             'xdg-utils: to set Pigment as the default roblox:// handler'
-            'kdesu: KDE service-cache refresh when changing the handler')
-# Built from a local source tarball produced by `make dist` in the repo root.
-# When published, replace with the release tarball URL and a real checksum.
-source=("$pkgname-$pkgver.tar.gz")
+            'kservice: kbuildsycoca6, refreshes KDE menus after a handler change')
+#lto off is the real fix for the link failure, dont go unsetting CFLAGS again
+options=('!lto')
+install=pigment-launcher.install
+source=("$pkgname-$pkgver.tar.gz::https://github.com/SpeeNotPee/Pigment/archive/refs/tags/v$pkgver.tar.gz")
+#fill in after tagging: makepkg -g >> PKGBUILD (or updpkgsums)
 sha256sums=('SKIP')
 
-build() {
-  cd "$srcdir/$pkgname-$pkgver"
+prepare() {
+  cd "$_srcname-$pkgver"
   export RUSTUP_TOOLCHAIN=stable
-  unset CFLAGS CXXFLAGS LDFLAGS
-  export CARGO_PROFILE_RELEASE_LTO=false
-  
-  cargo build --release --workspace
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+  cd "$_srcname-$pkgver"
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  cargo build --frozen --release --workspace
+}
+
+check() {
+  cd "$_srcname-$pkgver"
+  export RUSTUP_TOOLCHAIN=stable
+  cargo test --frozen --workspace
 }
 
 package() {
-  cd "$srcdir/$pkgname-$pkgver"
-  export RUSTUP_TOOLCHAIN=stable
-  unset CFLAGS CXXFLAGS LDFLAGS
-  export CARGO_PROFILE_RELEASE_LTO=false
-  make install PREFIX=/usr DESTDIR="$pkgdir"
+  cd "$_srcname-$pkgver"
+  #CARGO=true so make install dont rerun cargo under fakeroot, build() already did it
+  make install PREFIX=/usr DESTDIR="$pkgdir" CARGO=true
   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 }

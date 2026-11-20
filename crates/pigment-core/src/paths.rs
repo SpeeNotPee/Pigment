@@ -144,8 +144,14 @@ mod tests {
     #[test]
     fn pigment_paths_layout() {
         let p = PigmentPaths::with_config_dir("/home/alice/.config/pigment");
-        assert_eq!(p.profiles_dir(), Path::new("/home/alice/.config/pigment/profiles"));
+        assert_eq!(
+            p.profiles_dir(),
+            Path::new("/home/alice/.config/pigment/profiles")
+        );
         assert_eq!(p.mods_dir(), Path::new("/home/alice/.config/pigment/mods"));
-        assert_eq!(p.state_file(), Path::new("/home/alice/.config/pigment/state.json"));
+        assert_eq!(
+            p.state_file(),
+            Path::new("/home/alice/.config/pigment/state.json")
+        );
     }
 }

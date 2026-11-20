@@ -62,15 +62,11 @@ pub(crate) fn install_menu(window: &adw::ApplicationWindow, button: &gtk::MenuBu
 
 /// idk why I added this tbh
 fn open_uri(window: &impl IsA<gtk::Window>, url: &'static str) {
-    gtk::UriLauncher::new(url).launch(
-        Some(window),
-        gio::Cancellable::NONE,
-        move |res| {
-            if let Err(e) = res {
-                eprintln!("pigment: could not open {url}: {e}");
-            }
-        },
-    );
+    gtk::UriLauncher::new(url).launch(Some(window), gio::Cancellable::NONE, move |res| {
+        if let Err(e) = res {
+            eprintln!("pigment: could not open {url}: {e}");
+        }
+    });
 }
 
 /// even more AI generated legal shit that I dont bother doing.

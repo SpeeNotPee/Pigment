@@ -45,15 +45,15 @@ def tokens() -> dict:
 
 
 def build(src: pathlib.Path, dst: pathlib.Path, subs: dict) -> None:
-    html = src.read_text()
+    html = src.read_text(encoding="utf-8")
     # __THEME__ first: the stylesheet itself contains font and icon tokens.
-    html = html.replace("__THEME__", (HERE / "theme.css").read_text())
+    html = html.replace("__THEME__", (HERE / "theme.css").read_text(encoding="utf-8"))
     for token, value in subs.items():
         html = html.replace(token, value)
     leftover = [t for t in list(subs) + ["__THEME__"] if t in html]
     if leftover:
         raise SystemExit(f"{src.name}: unsubstituted tokens: {leftover}")
-    dst.write_text(html)
+    dst.write_text(html, encoding="utf-8")
     print(f"  {dst.relative_to(REPO)}  {len(html.encode()) / 1024:.0f} KB")
 
 

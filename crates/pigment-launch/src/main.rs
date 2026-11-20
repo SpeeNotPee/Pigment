@@ -1,20 +1,27 @@
 use std::process::ExitCode;
 
-use pigment_core::{ProfileStore, Sober};
+use pigment_core::{launch_with_active_profile, protocol, PigmentPaths, Sober};
 
 fn main() -> ExitCode {
-    let uri = std::env::args().nth(1);
+    //args_os bc args() straight up panics on a non utf8 arg, n a handler that panics = dead link
+    let arg = std::env::args_os().nth(1);
+
+    if arg.as_deref() == Some(std::ffi::OsStr::new("--unregister")) {
+        return unregister();
+    }
+    let uri = arg.map(|a| a.to_string_lossy().into_owned());
 
     let Some(sober) = Sober::discover() else {
         eprintln!("pigment-launch: cannot resolve $HOME; nothing to launch");
         return ExitCode::FAILURE;
     };
 
-    // Best effort profile application. Failures here must not block the launch.
-    apply_active_profile(&sober);
-
-    // Hand off to Sober. This is the step that must succeed.
-    match sober.launch(uri.as_deref()) {
+    //profile is best effort inside the helper, only the sober hand-off can fail us
+    let outcome = launch_with_active_profile(&sober, uri.as_deref());
+    if let Some(w) = &outcome.profile_warning {
+        eprintln!("pigment-launch: {w}; launching anyway");
+    }
+    match outcome.child {
         Ok(_) => ExitCode::SUCCESS,
         Err(e) => {
             eprintln!("pigment-launch: failed to launch Sober: {e}");
@@ -23,22 +30,21 @@ fn main() -> ExitCode {
     }
 }
 
-fn apply_active_profile(sober: &Sober) {
-    let Some(store) = ProfileStore::discover() else {
-        return;
+/// give roblox:// back to whoever had it n delete my generated desktop file.
+/// `make uninstall` n the aur .install hook call this so links dont point at a dead binary
+fn unregister() -> ExitCode {
+    let Some(paths) = PigmentPaths::discover() else {
+        eprintln!("pigment-launch: cannot resolve $HOME");
+        return ExitCode::FAILURE;
     };
-    // core does the actual work now so the gui join buttons cant drift from this path
-    match store.apply_active(sober.paths()) {
-        Ok(Some(report)) if !report.missing_mods.is_empty() => {
-            eprintln!(
-                "pigment-launch: active profile references missing mods: {}",
-                report.missing_mods.join(", ")
-            );
+    match protocol::restore_previous(&paths) {
+        Ok(()) => {
+            println!("pigment-launch: roblox:// handler restored, launcher entry removed");
+            ExitCode::SUCCESS
         }
-        // None = no active profile, launch w/ config untouched
-        Ok(_) => {}
         Err(e) => {
-            eprintln!("pigment-launch: could not apply active profile: {e}; launching anyway");
+            eprintln!("pigment-launch: could not unregister: {e}");
+            ExitCode::FAILURE
         }
     }
 }

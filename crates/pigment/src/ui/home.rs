@@ -4,7 +4,7 @@ use std::cell::Cell;
 use std::rc::Rc;
 
 use adw::prelude::*;
-use pigment_core::{protocol, Sober};
+use pigment_core::{protocol, PigmentPaths, Sober};
 
 /// Build the Home page.
 pub fn build() -> gtk::Widget {
@@ -41,7 +41,9 @@ pub fn build() -> gtk::Widget {
     let installed = build.is_some();
     let has_config = sober.as_ref().map(|s| s.has_config()).unwrap_or(false);
 
-    let group = adw::PreferencesGroup::builder().title("Sober Runtime").build();
+    let group = adw::PreferencesGroup::builder()
+        .title("Sober Runtime")
+        .build();
     group.add(&status_row(
         "Installed",
         &match build.as_ref().and_then(|b| b.label()) {
@@ -57,7 +59,11 @@ pub fn build() -> gtk::Widget {
     }
     group.add(&status_row(
         "Configuration",
-        if has_config { "Present" } else { "Not yet created" },
+        if has_config {
+            "Present"
+        } else {
+            "Not yet created"
+        },
         has_config,
     ));
 
@@ -84,12 +90,26 @@ pub fn build() -> gtk::Widget {
         .css_classes(["suggested-action", "pill"])
         .sensitive(installed)
         .build();
+    //shows what went wrong right under the button. "see terminal" is useless from a desktop launch
+    let launch_status = gtk::Label::builder()
+        .wrap(true)
+        .justify(gtk::Justification::Center)
+        .css_classes(["dim-label"])
+        .build();
     if let Some(sober) = sober.clone() {
-        launch.connect_clicked(move |btn| match sober.launch(None) {
-            Ok(_) => super::note("launched Sober"),
+        let launch_status = launch_status.clone();
+        launch.connect_clicked(move |_| match super::launch(&sober, None) {
+            Ok(None) => {
+                launch_status.set_css_classes(&["dim-label"]);
+                launch_status.set_text("Launching Roblox…");
+            }
+            Ok(Some(warn)) => {
+                launch_status.set_css_classes(&["warning"]);
+                launch_status.set_text(&format!("Launching, but {warn}."));
+            }
             Err(e) => {
-                btn.set_label("Launch failed — see terminal");
-                eprintln!("pigment: failed to launch Sober: {e}");
+                launch_status.set_css_classes(&["error"]);
+                launch_status.set_text(&e);
             }
         });
     }
@@ -101,12 +121,12 @@ pub fn build() -> gtk::Widget {
         container.append(&update_banner(sober));
     }
 
-
     if installed {
         container.append(&default_launcher_group());
     }
 
     container.append(&launch);
+    container.append(&launch_status);
 
     let clamp = adw::Clamp::builder()
         .maximum_size(560)
@@ -122,7 +142,8 @@ fn update_banner(sober: Sober) -> adw::Banner {
     let (tx, rx) = async_channel::bounded::<String>(1);
     std::thread::spawn(move || {
         if sober.update_available().is_some() {
-            let _ = tx.send_blocking("Update Sober: flatpak update org.vinegarhq.Sober".to_string());
+            let _ =
+                tx.send_blocking("Update Sober: flatpak update org.vinegarhq.Sober".to_string());
         }
     });
 
@@ -159,9 +180,14 @@ fn default_launcher_group() -> adw::PreferencesGroup {
             return;
         }
         let enable = row.is_active();
-        let result = if enable {
+        let Some(paths) = PigmentPaths::discover() else {
+            row.set_subtitle("Could not resolve your config directory");
+            revert(&guard2, &row_weak, !enable);
+            return;
+        };
+        let exec = if enable {
             match super::launch_binary_path() {
-                Some(exec) => protocol::register(&exec),
+                Some(exec) => Some(exec),
                 None => {
                     row.set_subtitle("Could not locate the pigment-launch binary");
                     revert(&guard2, &row_weak, !enable);
@@ -169,20 +195,39 @@ fn default_launcher_group() -> adw::PreferencesGroup {
                 }
             }
         } else {
-            protocol::restore_sober()
+            None
         };
 
-        match result {
-            Ok(()) => row.set_subtitle(if enable {
-                "Pigment now handles roblox:// links"
-            } else {
-                "Sober handles roblox:// links again"
-            }),
-            Err(e) => {
-                row.set_subtitle(&format!("Could not change handler: {e}"));
-                revert(&guard2, &row_weak, !enable);
+        //xdg-mime + kbuildsycoca take secs on kde, so off the main thread it goes
+        row.set_sensitive(false);
+        row.set_subtitle("Updating…");
+        let (tx, rx) = async_channel::bounded::<Result<(), String>>(1);
+        std::thread::spawn(move || {
+            let res = match exec {
+                Some(exec) => protocol::register(&exec, &paths),
+                None => protocol::restore_previous(&paths),
+            };
+            let _ = tx.send_blocking(res.map_err(|e| e.to_string()));
+        });
+        let (row, guard, row_weak) = (row.clone(), guard2.clone(), row_weak.clone());
+        gtk::glib::spawn_future_local(async move {
+            let res = rx
+                .recv()
+                .await
+                .unwrap_or_else(|_| Err("worker died".into()));
+            row.set_sensitive(true);
+            match res {
+                Ok(()) => row.set_subtitle(if enable {
+                    "Pigment now handles roblox:// links"
+                } else {
+                    "Your previous roblox:// handler is back"
+                }),
+                Err(e) => {
+                    row.set_subtitle(&format!("Could not change handler: {e}"));
+                    revert(&guard, &row_weak, !enable);
+                }
             }
-        }
+        });
     });
 
     group.add(&row);
@@ -198,9 +243,14 @@ fn revert(guard: &Rc<Cell<bool>>, row: &adw::SwitchRow, to: bool) {
 
 /// A status row with a check/cross suffix icon reflecting a boolean.
 fn status_row(title: &str, value: &str, ok: bool) -> adw::ActionRow {
-    let row = adw::ActionRow::builder().title(title).subtitle(value).build();
+    let row = adw::ActionRow::builder()
+        .title(title)
+        .subtitle(value)
+        .build();
+    //NOT emblem-ok-symbolic, adwaita 47+ yeeted it (arch + debian 13 show a broken img).
+    //object-select is the same checkmark n exists on every adwaita we support
     let icon = gtk::Image::from_icon_name(if ok {
-        "emblem-ok-symbolic"
+        "object-select-symbolic"
     } else {
         "dialog-warning-symbolic"
     });

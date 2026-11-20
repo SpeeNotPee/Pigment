@@ -55,6 +55,42 @@ pub enum ProfileError {
     Config(#[from] ConfigError),
     #[error("no profile named {0:?}")]
     NotFound(String),
+    #[error("{0:?} is not a valid profile name (letters, digits, space, - _ . only; max 64)")]
+    InvalidName(String),
+}
+
+/// the sober keys pigment owns. snapshots only grab these + fflags, so a profile dont
+/// freeze random future sober keys forever. matches the settings page 1:1 (theres a test)
+pub const MANAGED_SETTINGS: &[&str] = &[
+    "allow_gamepad_permission",
+    "close_on_leave",
+    "discord_rpc_enabled",
+    "discord_rpc_show_join_button",
+    "enable_gamemode",
+    "enable_hidpi",
+    "enable_mobile_home_screen",
+    "graphics_optimization_mode",
+    "server_location_indicator_enabled",
+    "touch_mode",
+    "use_console_experience",
+    "use_libsecret",
+    "use_opengl",
+];
+
+impl Profile {
+    /// grab the current sober setup as a profile. managed keys + fflags only
+    pub fn snapshot(name: impl Into<String>, config: &Config) -> Self {
+        let mut p = Self::new(name);
+        for key in MANAGED_SETTINGS {
+            if let Some(v) = config.get(key) {
+                p.settings.insert((*key).to_string(), v.clone());
+            }
+        }
+        if let Some(flags) = config.fflags() {
+            p.fflags = flags.clone();
+        }
+        p
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -77,8 +113,16 @@ impl ProfileStore {
         &self.paths
     }
 
-    fn profile_file(&self, name: &str) -> PathBuf {
-        self.paths.profiles_dir().join(format!("{name}.json"))
+    fn profile_file(&self, name: &str) -> Result<PathBuf, ProfileError> {
+        if !crate::util::is_valid_name(name) {
+            return Err(ProfileError::InvalidName(name.to_string()));
+        }
+        Ok(self.paths.profiles_dir().join(format!("{name}.json")))
+    }
+
+    /// whether a profile by this name already exists (for the overwrite prompt)
+    pub fn exists(&self, name: &str) -> bool {
+        self.profile_file(name).map(|p| p.exists()).unwrap_or(false)
     }
 
     /// Names of all stored profiles, sorted.
@@ -97,7 +141,11 @@ impl ProfileStore {
             })?;
             let path = entry.path();
             if path.extension().and_then(|e| e.to_str()) == Some("json") {
-                if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                if let Some(stem) = path
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .filter(|s| crate::util::is_valid_name(s))
+                {
                     names.push(stem.to_string());
                 }
             }
@@ -108,7 +156,7 @@ impl ProfileStore {
 
     /// Load a profile by name.
     pub fn load(&self, name: &str) -> Result<Profile, ProfileError> {
-        let path = self.profile_file(name);
+        let path = self.profile_file(name)?;
         let text = match fs::read_to_string(&path) {
             Ok(t) => t,
             Err(e) if e.kind() == io::ErrorKind::NotFound => {
@@ -121,15 +169,15 @@ impl ProfileStore {
 
     /// Save a profile, creating or overwriting its file atomically.
     pub fn save(&self, profile: &Profile) -> Result<(), ProfileError> {
-        let path = self.profile_file(&profile.name);
-        let json = serde_json::to_vec_pretty(profile)
-            .map_err(|e| ProfileError::Parse(e.to_string()))?;
+        let path = self.profile_file(&profile.name)?;
+        let json =
+            serde_json::to_vec_pretty(profile).map_err(|e| ProfileError::Parse(e.to_string()))?;
         crate::util::write_atomic(&path, &json).map_err(|source| ProfileError::Io { path, source })
     }
 
     /// Delete a profile. Deleting a missing profile is not an error.
     pub fn delete(&self, name: &str) -> Result<(), ProfileError> {
-        let path = self.profile_file(name);
+        let path = self.profile_file(name)?;
         match fs::remove_file(&path) {
             Ok(()) => Ok(()),
             Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
@@ -139,25 +187,30 @@ impl ProfileStore {
 
     /// The active profile name, if one is set and still exists.
     pub fn active(&self) -> Option<String> {
-        let text = fs::read_to_string(self.paths.state_file()).ok()?;
-        let state: State = serde_json::from_str(&text).ok()?;
-        let name = state.active_profile?;
+        let name = crate::state::State::load(&self.paths).active_profile?;
         // Only report it as active if the profile file still exists.
-        self.profile_file(&name).exists().then_some(name)
+        self.exists(&name).then_some(name)
     }
 
+    /// load, modify, save. used to rewrite state.json from scratch n nuke the saved handlers
     pub fn set_active(&self, name: Option<&str>) -> Result<(), ProfileError> {
-        let path = self.paths.state_file();
-        let state = State {
-            active_profile: name.map(str::to_string),
-        };
-        let json = serde_json::to_vec_pretty(&state)
-            .map_err(|e| ProfileError::Parse(e.to_string()))?;
-        crate::util::write_atomic(&path, &json).map_err(|source| ProfileError::Io { path, source })
+        if let Some(n) = name {
+            self.profile_file(n)?;
+        }
+        let mut state = crate::state::State::load(&self.paths);
+        state.active_profile = name.map(str::to_string);
+        state.save(&self.paths).map_err(|source| ProfileError::Io {
+            path: self.paths.state_file(),
+            source,
+        })
     }
 
     /// Resolve a mod name to its source directory in the library, if it exists.
+    /// names straight outta a profile json r untrusted, so `../../.ssh` = missing, not copied
     fn resolve_mod(&self, name: &str) -> Option<ModSource> {
+        if !crate::util::is_valid_name(name) {
+            return None;
+        }
         let root = self.paths.mods_dir().join(name);
         root.is_dir().then(|| ModSource::new(name, root))
     }
@@ -183,10 +236,12 @@ impl ProfileStore {
                 None => missing_mods.push(name.clone()),
             }
         }
-        let overlay = mods::compose_overlay(sober.asset_overlay_dir(), &sources)
-            .map_err(|source| ProfileError::Io {
-                path: sober.asset_overlay_dir(),
-                source,
+        let overlay =
+            mods::compose_overlay(sober.asset_overlay_dir(), &sources).map_err(|source| {
+                ProfileError::Io {
+                    path: sober.asset_overlay_dir(),
+                    source,
+                }
             })?;
 
         Ok(ApplyReport {
@@ -206,12 +261,51 @@ impl ProfileStore {
         let profile = self.load(&name)?;
         self.apply(&profile, sober).map(Some)
     }
+
+    /// THE way pages edit stuff. active profile = source of truth, so i edit it, save it,
+    /// then apply it. Ok(None) means no active profile, caller writes config.json itself.
+    /// b4 this the fflags/settings pages only wrote config.json n the next apply reverted em
+    pub fn update_active(
+        &self,
+        sober: &SoberPaths,
+        edit: impl FnOnce(&mut Profile),
+    ) -> Result<Option<ApplyReport>, ProfileError> {
+        let Some(name) = self.active() else {
+            return Ok(None);
+        };
+        let mut profile = self.load(&name)?;
+        edit(&mut profile);
+        self.save(&profile)?;
+        self.apply(&profile, sober).map(Some)
+    }
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
-struct State {
-    #[serde(default)]
-    active_profile: Option<String>,
+/// what happened on a launch. profile trouble never blocks the launch, it just rides along
+#[derive(Debug)]
+pub struct LaunchOutcome {
+    pub child: std::io::Result<std::process::Child>,
+    /// set if the profile couldnt fully apply. show it, dont eat it
+    pub profile_warning: Option<String>,
+}
+
+/// apply the active profile (best effort) then launch sober. every launch button goes thru
+/// here: home, settings, join, n pigment-launch. used to be only some of em lol
+pub fn launch_with_active_profile(sober: &crate::Sober, uri: Option<&str>) -> LaunchOutcome {
+    let profile_warning = match ProfileStore::discover() {
+        None => None,
+        Some(store) => match store.apply_active(sober.paths()) {
+            Ok(Some(rep)) if !rep.missing_mods.is_empty() => Some(format!(
+                "active profile references missing mods: {}",
+                rep.missing_mods.join(", ")
+            )),
+            Ok(_) => None,
+            Err(e) => Some(format!("could not apply active profile: {e}")),
+        },
+    };
+    LaunchOutcome {
+        child: sober.launch(uri),
+        profile_warning,
+    }
 }
 
 #[cfg(test)]
@@ -279,7 +373,9 @@ mod tests {
         let cfg = Config::load(sober.config_file()).unwrap();
         assert_eq!(cfg.get_bool("use_opengl"), Some(true));
         assert_eq!(
-            cfg.fflags().and_then(|m| m.get("DFIntFoo")).and_then(Value::as_i64),
+            cfg.fflags()
+                .and_then(|m| m.get("DFIntFoo"))
+                .and_then(Value::as_i64),
             Some(7)
         );
     }
@@ -306,6 +402,109 @@ mod tests {
             .asset_overlay_dir()
             .join("content/textures/Cursors/KeyboardMouse/ArrowCursor.png");
         assert_eq!(fs::read(overlaid).unwrap(), b"dark".to_vec());
+    }
+
+    #[test]
+    fn bad_profile_names_are_refused() {
+        let (dir, store) = store();
+        for bad in ["PvP/Ranked", "../x", "..", ".", ""] {
+            assert!(
+                matches!(
+                    store.save(&Profile::new(bad)),
+                    Err(ProfileError::InvalidName(_))
+                ),
+                "{bad}"
+            );
+            assert!(store.set_active(Some(bad)).is_err());
+            assert!(store.delete(bad).is_err());
+        }
+        assert!(!dir.path().join("x.json").exists());
+        assert!(store.list().unwrap().is_empty());
+    }
+
+    #[test]
+    fn profile_mod_names_cant_escape_the_library() {
+        let (dir, store) = store();
+        let home = tempfile::tempdir().unwrap();
+        let sober = fake_sober(home.path());
+        //a juicy dir outside mods/ that the profile tries to drag into the overlay
+        let secret = dir.path().join("secret");
+        fs::create_dir_all(&secret).unwrap();
+        fs::write(secret.join("id_ed25519"), b"nope").unwrap();
+
+        let mut p = Profile::new("evil");
+        p.mods = vec!["../secret".into(), "..".into()];
+        let rep = store.apply(&p, &sober).unwrap();
+        assert_eq!(rep.missing_mods.len(), 2);
+        assert_eq!(rep.overlay.file_count(), 0);
+        assert!(!sober.asset_overlay_dir().join("id_ed25519").exists());
+    }
+
+    #[test]
+    fn flag_saved_thru_update_active_survives_a_mod_toggle() {
+        //the B1 repro: enable mod -> add flag -> toggle mod -> flag must still be there
+        let (_d, store) = store();
+        let home = tempfile::tempdir().unwrap();
+        let sober = fake_sober(home.path());
+        store.save(&Profile::new("Default")).unwrap();
+        store.set_active(Some("Default")).unwrap();
+
+        store
+            .update_active(&sober, |p| {
+                p.fflags.insert("FFlagKeepMe".into(), Value::Bool(true));
+            })
+            .unwrap()
+            .expect("profile is active");
+        //toggle = edit mods + apply, same as the mods page does
+        store
+            .update_active(&sober, |p| p.mods.push("whatever".into()))
+            .unwrap();
+        //n a launch reapplies too
+        store.apply_active(&sober).unwrap();
+
+        let cfg = Config::load(sober.config_file()).unwrap();
+        assert_eq!(
+            cfg.fflags().unwrap().get("FFlagKeepMe"),
+            Some(&Value::Bool(true))
+        );
+    }
+
+    #[test]
+    fn update_active_without_profile_is_none() {
+        let (_d, store) = store();
+        let home = tempfile::tempdir().unwrap();
+        let sober = fake_sober(home.path());
+        assert!(store
+            .update_active(&sober, |_| panic!("no profile"))
+            .unwrap()
+            .is_none());
+    }
+
+    #[test]
+    fn snapshot_only_grabs_managed_keys() {
+        let cfg =
+            Config::parse(r#"{"use_opengl":true,"some_future_key":1,"fflags":{"A":1}}"#).unwrap();
+        let p = Profile::snapshot("s", &cfg);
+        assert_eq!(p.settings.len(), 1);
+        assert!(p.settings.contains_key("use_opengl"));
+        assert_eq!(p.fflags.len(), 1);
+    }
+
+    #[test]
+    fn set_active_keeps_other_state() {
+        let (_d, store) = store();
+        let mut st = crate::state::State::load(store.paths());
+        st.previous_handlers
+            .insert("x-scheme-handler/roblox".into(), "other.desktop".into());
+        st.save(store.paths()).unwrap();
+        store.save(&Profile::new("a")).unwrap();
+        store.set_active(Some("a")).unwrap();
+        let st = crate::state::State::load(store.paths());
+        assert_eq!(
+            st.previous_handlers["x-scheme-handler/roblox"],
+            "other.desktop"
+        );
+        assert_eq!(st.active_profile.as_deref(), Some("a"));
     }
 
     #[test]

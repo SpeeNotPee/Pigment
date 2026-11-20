@@ -9,7 +9,13 @@ pub fn game_name(universe_id: u64) -> Option<String> {
         .timeout_global(Some(Duration::from_secs(8)))
         .build();
     let agent: ureq::Agent = config.into();
-    let body = agent.get(&url).call().ok()?.body_mut().read_to_string().ok()?;
+    let body = agent
+        .get(&url)
+        .call()
+        .ok()?
+        .body_mut()
+        .read_to_string()
+        .ok()?;
     parse_game_name(&body)
 }
 

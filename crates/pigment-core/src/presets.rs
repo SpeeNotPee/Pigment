@@ -104,7 +104,10 @@ pub fn install_font(lib: &ModLibrary, font_path: &Path) -> io::Result<String> {
         .and_then(|s| s.to_str())
         .unwrap_or("custom");
     let name = format!("font-{stem}");
-    let files: Vec<(&str, &[u8])> = FONT_TARGETS.iter().map(|t| (*t, bytes.as_slice())).collect();
+    let files: Vec<(&str, &[u8])> = FONT_TARGETS
+        .iter()
+        .map(|t| (*t, bytes.as_slice()))
+        .collect();
     lib.install_from_files(&name, &files)
 }
 
@@ -116,6 +119,12 @@ pub const DEFAULT_CATALOG_URL: &str =
 pub fn catalog_url() -> String {
     std::env::var("PIGMENT_CATALOG_URL").unwrap_or_else(|_| DEFAULT_CATALOG_URL.to_string())
 }
+
+/// biggest single file i'll download for a preset. the oof is like 6 KiB, a font maybe 2 MiB
+pub const MAX_PRESET_FILE_BYTES: u64 = 16 * 1024 * 1024;
+
+/// apk roots a catalog file is allowed to land under. anything else = sketchy catalog
+const ALLOWED_ASSET_ROOTS: &[&str] = &["content/", "ExtraContent/", "android/"];
 
 #[derive(Debug, thiserror::Error)]
 pub enum PresetError {
@@ -129,6 +138,8 @@ pub enum PresetError {
         expected: String,
         actual: String,
     },
+    #[error("catalog entry {id:?} rejected: {reason}")]
+    BadEntry { id: String, reason: String },
     #[error(transparent)]
     Io(#[from] io::Error),
 }
@@ -169,19 +180,82 @@ pub fn fetch_catalog(url: &str) -> Result<Catalog, PresetError> {
         .call()
         .map_err(|e| PresetError::Http(e.to_string()))?
         .body_mut()
+        .with_config()
+        .limit(1024 * 1024)
         .read_to_string()
         .map_err(|e| PresetError::Http(e.to_string()))?;
     parse_catalog(&body)
 }
 
-/// split out from fetch so tests dont need a webserver
+/// split out from fetch so tests dont need a webserver. bad entries get dropped here,
+/// b4 the gui ever shows em, so a dodgy catalog cant even offer a traversal path
 pub fn parse_catalog(json: &str) -> Result<Catalog, PresetError> {
-    serde_json::from_str(json).map_err(|e| PresetError::Parse(e.to_string()))
+    let mut cat: Catalog =
+        serde_json::from_str(json).map_err(|e| PresetError::Parse(e.to_string()))?;
+    cat.entries.retain(|e| match validate_entry(e) {
+        Ok(()) => true,
+        Err(err) => {
+            eprintln!("pigment: skipping catalog entry: {err}");
+            false
+        }
+    });
+    Ok(cat)
+}
+
+/// every rule a catalog entry has to pass. the sha pins live in the same file so they
+/// only protect vs a swapped download host, these checks r what stop a bad catalog
+pub fn validate_entry(entry: &CatalogEntry) -> Result<(), PresetError> {
+    let bad = |reason: String| PresetError::BadEntry {
+        id: entry.id.clone(),
+        reason,
+    };
+    if !crate::util::is_valid_name(&entry.id) {
+        return Err(bad("id is not a valid mod name".into()));
+    }
+    if entry.files.is_empty() {
+        return Err(bad("no files".into()));
+    }
+    for f in &entry.files {
+        if !crate::library::is_safe_rel_path(&f.apk_path)
+            || !ALLOWED_ASSET_ROOTS
+                .iter()
+                .any(|r| f.apk_path.starts_with(r))
+        {
+            return Err(bad(format!(
+                "apk_path {:?} is not under a known asset root",
+                f.apk_path
+            )));
+        }
+        if !f.url.starts_with("https://") {
+            return Err(bad(format!("url {:?} is not https", f.url)));
+        }
+        let sha = f.sha256.trim();
+        if sha.len() != 64 || !sha.bytes().all(|b| b.is_ascii_hexdigit()) {
+            return Err(bad("sha256 is not 64 hex chars".into()));
+        }
+    }
+    Ok(())
+}
+
+/// paths an entry would write that this roblox ver dont ship. roblox 2.745 (sober 1.8)
+/// yanked every content/sounds file outta the apk, so sound presets show up here now
+pub fn missing_targets<'a>(
+    entry: &'a CatalogEntry,
+    tree: &crate::mods::ApkAssetTree,
+) -> Vec<&'a str> {
+    entry
+        .files
+        .iter()
+        .map(|f| f.apk_path.as_str())
+        .filter(|p| !tree.contains(p))
+        .collect()
 }
 
 /// download every file of a catalog entry, verify hashes, then install as a normal mod.
 /// all-or-nothing: one bad file n nothing lands in the library
 pub fn install_remote(lib: &ModLibrary, entry: &CatalogEntry) -> Result<String, PresetError> {
+    //again here, in case someone built an entry by hand instead of thru parse_catalog
+    validate_entry(entry)?;
     let agent = agent();
     let mut files: Vec<(String, Vec<u8>)> = Vec::new();
     for f in &entry.files {
@@ -190,6 +264,8 @@ pub fn install_remote(lib: &ModLibrary, entry: &CatalogEntry) -> Result<String, 
             .call()
             .map_err(|e| PresetError::Http(format!("{}: {e}", f.url)))?
             .body_mut()
+            .with_config()
+            .limit(MAX_PRESET_FILE_BYTES)
             .read_to_vec()
             .map_err(|e| PresetError::Http(format!("{}: {e}", f.url)))?;
         verify_sha256(&f.apk_path, &bytes, &f.sha256)?;
@@ -293,6 +369,54 @@ mod tests {
         assert_eq!(cat.entries.len(), 1);
         assert_eq!(cat.entries[0].files[0].apk_path, "content/sounds/oof.ogg");
         assert!(parse_catalog("not json").is_err());
+    }
+
+    fn entry(id: &str, apk_path: &str, url: &str) -> CatalogEntry {
+        CatalogEntry {
+            id: id.into(),
+            name: "x".into(),
+            description: "x".into(),
+            files: vec![CatalogFile {
+                apk_path: apk_path.into(),
+                url: url.into(),
+                sha256: "a".repeat(64),
+            }],
+        }
+    }
+
+    #[test]
+    fn hostile_catalog_entries_get_dropped() {
+        let ok = entry("fine", "content/sounds/oof.ogg", "https://x.y/a.ogg");
+        assert!(validate_entry(&ok).is_ok());
+        for bad in [
+            entry("..", "content/a.png", "https://x/a"),
+            entry(".", "content/a.png", "https://x/a"),
+            entry("ok", "../../.bashrc", "https://x/a"),
+            entry("ok", "/etc/passwd", "https://x/a"),
+            entry("ok", "content/../../x", "https://x/a"),
+            entry("ok", "lib/x86_64/libroblox.so", "https://x/a"),
+            entry("ok", "content/a.png", "http://x/a"),
+            entry("ok", "content/a.png", "file:///etc/shadow"),
+        ] {
+            assert!(validate_entry(&bad).is_err(), "{bad:?} slipped thru");
+        }
+        let json = r#"{"entries":[
+            {"id":"..","name":"evil","description":"","files":[{"apk_path":"content/a","url":"https://x","sha256":"0000000000000000000000000000000000000000000000000000000000000000"}]},
+            {"id":"good","name":"good","description":"","files":[{"apk_path":"content/a","url":"https://x","sha256":"0000000000000000000000000000000000000000000000000000000000000000"}]}
+        ]}"#;
+        let cat = parse_catalog(json).unwrap();
+        assert_eq!(cat.entries.len(), 1);
+        assert_eq!(cat.entries[0].id, "good");
+    }
+
+    #[test]
+    fn dotdot_catalog_id_installs_nothing_n_deletes_nothing() {
+        let (dir, lib) = lib();
+        install_bundled(&lib, &BUNDLED[0]).unwrap();
+        let evil = entry("..", "content/a.png", "https://x/a");
+        assert!(install_remote(&lib, &evil).is_err());
+        assert!(lib.contains(BUNDLED[0].id));
+        assert!(dir.path().join("mods").exists());
     }
 
     #[test]

@@ -8,6 +8,9 @@ use serde_json::Value;
 /// Suffix appended to the config path for the pre-overwrite backup.
 const BACKUP_SUFFIX: &str = ".pigment.bak";
 
+/// one shot copy of sobers config from b4 pigment ever wrote it. never overwritten
+const ORIGINAL_SUFFIX: &str = ".pigment.orig";
+
 /// Errors from loading, editing, or saving the Sober config.
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigError {
@@ -155,6 +158,14 @@ impl Config {
         })?;
 
         if path.exists() {
+            //the .bak only ever holds the previous write, so keep a forever copy of the og too
+            let original = original_path(path);
+            if !original.exists() {
+                fs::copy(path, &original).map_err(|source| ConfigError::Write {
+                    path: original,
+                    source,
+                })?;
+            }
             let backup = backup_path(path);
             fs::copy(path, &backup).map_err(|source| ConfigError::Write {
                 path: backup,
@@ -162,11 +173,9 @@ impl Config {
             })?;
         }
 
-        crate::util::write_atomic(path, rendered.as_bytes()).map_err(|source| {
-            ConfigError::Write {
-                path: path.to_path_buf(),
-                source,
-            }
+        crate::util::write_atomic(path, rendered.as_bytes()).map_err(|source| ConfigError::Write {
+            path: path.to_path_buf(),
+            source,
         })
     }
 
@@ -182,6 +191,38 @@ impl Config {
         })?;
         Ok(())
     }
+}
+
+impl Config {
+    /// put back sobers config exactly as it was b4 pigment first touched it
+    pub fn restore_original(path: impl AsRef<Path>) -> Result<(), ConfigError> {
+        let path = path.as_ref();
+        let original = original_path(path);
+        if !original.exists() {
+            return Err(ConfigError::NoBackup(original));
+        }
+        //validate first, restoring a corrupt file would brick sober (sober#1519)
+        let text = fs::read_to_string(&original).map_err(|source| ConfigError::Read {
+            path: original.clone(),
+            source,
+        })?;
+        Config::parse(&text)?;
+        crate::util::write_atomic(path, text.as_bytes()).map_err(|source| ConfigError::Write {
+            path: path.to_path_buf(),
+            source,
+        })
+    }
+
+    /// whether theres an og copy to restore
+    pub fn has_original(path: impl AsRef<Path>) -> bool {
+        original_path(path.as_ref()).exists()
+    }
+}
+
+fn original_path(path: &Path) -> PathBuf {
+    let mut s = path.as_os_str().to_os_string();
+    s.push(ORIGINAL_SUFFIX);
+    PathBuf::from(s)
 }
 
 /// path of the backup file for a given config path.
@@ -208,10 +249,20 @@ fn extract_preamble(text: &str) -> String {
     lines.join("\n")
 }
 
+/// skip the leading `//` + blank lines. used to cut at the first `{` which broke the
+/// second sober put a brace in its comment header
 fn strip_preamble(text: &str) -> &str {
-    match text.find('{') {
-        Some(i) => &text[i..],
-        None => text,
+    let mut rest = text;
+    loop {
+        let trimmed = rest.trim_start_matches([' ', '\t', '\r', '\n']);
+        if trimmed.starts_with("//") {
+            rest = match trimmed.find('\n') {
+                Some(i) => &trimmed[i + 1..],
+                None => "",
+            };
+        } else {
+            return trimmed;
+        }
     }
 }
 
@@ -273,7 +324,10 @@ mod tests {
         let alpha = out.find("alpha").unwrap();
         let zeta = out.find("zeta").unwrap();
         assert!(alpha < zeta, "keys not alphabetized:\n{out}");
-        assert!(out.contains("\n    \"alpha\""), "not 4-space indented:\n{out}");
+        assert!(
+            out.contains("\n    \"alpha\""),
+            "not 4-space indented:\n{out}"
+        );
     }
 
     #[test]
@@ -292,7 +346,10 @@ mod tests {
         let cfg = Config::parse(LIVE_SAMPLE).unwrap();
         cfg.save(&path).unwrap();
         assert!(path.exists());
-        assert!(!backup_path(&path).exists(), "no backup expected on first write");
+        assert!(
+            !backup_path(&path).exists(),
+            "no backup expected on first write"
+        );
 
         let mut cfg2 = Config::load(&path).unwrap();
         cfg2.set_bool("use_opengl", true);
@@ -334,7 +391,38 @@ mod tests {
             Some("https://roblox.com/x")
         );
         let out = cfg.to_pretty_string();
-        assert!(out.contains("https://roblox.com/x"), "URL corrupted:\n{out}");
+        assert!(
+            out.contains("https://roblox.com/x"),
+            "URL corrupted:\n{out}"
+        );
+    }
+
+    #[test]
+    fn brace_in_comment_header_doesnt_break_save() {
+        let src = "// see {docs} for keys\n// {\n{ \"use_opengl\": true }\n";
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        Config::parse(src).unwrap().save(&path).unwrap();
+        let back = Config::load(&path).unwrap();
+        assert_eq!(back.get_bool("use_opengl"), Some(true));
+        assert!(fs::read_to_string(&path)
+            .unwrap()
+            .starts_with("// see {docs}"));
+    }
+
+    #[test]
+    fn original_is_written_once_and_restorable() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        fs::write(&path, LIVE_SAMPLE).unwrap();
+        for v in [true, false, true] {
+            let mut c = Config::load(&path).unwrap();
+            c.set_bool("use_opengl", v);
+            c.save(&path).unwrap();
+        }
+        assert!(Config::has_original(&path));
+        Config::restore_original(&path).unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), LIVE_SAMPLE);
     }
 
     #[test]

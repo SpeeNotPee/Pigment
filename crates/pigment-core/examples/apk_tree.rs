@@ -8,7 +8,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("indexed asset files: {}", tree.len());
 
     let cursor = "content/textures/Cursors/KeyboardMouse/ArrowCursor.png";
-    println!("contains documented cursor path ({cursor}): {}", tree.contains(cursor));
+    println!(
+        "contains documented cursor path ({cursor}): {}",
+        tree.contains(cursor)
+    );
 
     println!("first 8 asset paths:");
     for p in tree.iter().take(8) {

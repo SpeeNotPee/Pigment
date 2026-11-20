@@ -10,11 +10,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if path.extension().and_then(|e| e.to_str()) != Some("log") {
             continue;
         }
-        let sessions = activity::sessions_from_file(&path)?;
+        let live =
+            std::fs::canonicalize(paths.latest_log()).ok() == std::fs::canonicalize(&path).ok();
+        let sessions = activity::sessions_from_file(&path, live)?;
         if sessions.is_empty() {
             continue;
         }
-        println!("{}: {} session(s)", path.file_name().unwrap().to_string_lossy(), sessions.len());
+        println!(
+            "{}: {} session(s)",
+            path.file_name().unwrap().to_string_lossy(),
+            sessions.len()
+        );
         for s in &sessions {
             let when = s
                 .joined_at
@@ -23,7 +29,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let dur = s
                 .duration()
                 .map(|d| format!("{}m{}s", d.whole_minutes(), d.whole_seconds() % 60))
-                .unwrap_or_else(|| if s.is_active() { "active".into() } else { "?".into() });
+                .unwrap_or_else(|| {
+                    if s.is_active() {
+                        "active".into()
+                    } else {
+                        "?".into()
+                    }
+                });
             println!(
                 "  place {} universe {:?}  joined {}  [{}]",
                 s.place_id, s.universe_id, when, dur

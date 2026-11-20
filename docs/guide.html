@@ -3,14 +3,8 @@
 <link rel="canonical" href="https://pigmentlab.net/guide.html">
 
 <style>
-/* ---- Pigment site theme ------------------------------------------------
-   Shared by the landing page and the guide so the two are one system.
-   Inlined into each page by site/build.py.
-
-   The design is a Linux desktop: terminal windows on a wallpaper, monospace
-   all the way down. Dark only, deliberately — a light variant would be a
-   different idea, not a recolour of this one.                              */
-
+/* Pre-generated config for site template */
+/* yes, I used a fucking site template cause I got rusty at web development */
 /* JetBrains Mono, subset to latin + box/block drawing. */
 @font-face {
   font-family: "JB Mono";
@@ -23,7 +17,7 @@
   font-weight: 700; font-style: normal; font-display: block;
 }
 
-/* Violet/magenta are Pigment's. Green/amber/blue are STATUS, never decoration. */
+/* Colors and stuff */
 :root {
   --void:#08070d;
   --win:rgb(19 16 28 / .82);
@@ -53,8 +47,7 @@ body {
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
 }
-/* The wallpaper: Pigment's own icon, dimmed to near-nothing, so the windows
-   have something to float over. No glow — just a desktop. */
+/* Basic ass wallpaper, nothing fancy */
 body::before {
   content:""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
   background: url("data:image/png;base64,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") no-repeat 82% 62%;
@@ -64,7 +57,7 @@ body::before {
 a { color: inherit; }
 :focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; border-radius: 2px; }
 
-/* ---- Bar (a tiling-WM status bar; also the site nav) -------------------- */
+/* some bars */
 .wm {
   position: fixed; top: 0; left: 0; right: 0; z-index: 40; height: 40px;
   display: flex; align-items: center; gap: .8rem;
@@ -86,7 +79,7 @@ a { color: inherit; }
 .wm .go:hover { background: var(--magenta); }
 @media (max-width: 700px) { .wm nav a:not(.keep) { display: none; } .wm .ws { display: none; } }
 
-/* ---- Window chrome ----------------------------------------------------- */
+/* window stuff */
 .win {
   background: var(--win); border: 1px solid var(--edge); border-radius: 11px;
   backdrop-filter: blur(14px); overflow: hidden;
@@ -105,14 +98,14 @@ a { color: inherit; }
 .wt { color: var(--muted); font-size: 12.5px; }
 .win > .body { padding: 1rem .95rem 1.15rem; }
 
-/* ---- Prompt ------------------------------------------------------------ */
+/* stuff inside */
 .cmd { margin: 0 0 .8rem; color: var(--text); overflow-wrap: anywhere; }
 .cmd .u { color: var(--violet); font-weight: 700; }
 .cmd .at { color: var(--magenta); font-weight: 700; }
 .cmd .d { color: var(--dim); }
 .hash { color: var(--dim); margin: -.35rem 0 .9rem; }
 
-/* ---- Copyable command -------------------------------------------------- */
+/* install command */
 .run { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
   background: var(--sunk); border: 1px solid var(--edge); border-radius: 6px;
   padding: .5rem .65rem; margin-top: 1rem; }
@@ -145,7 +138,7 @@ a { color: inherit; }
 .links .v { color: var(--blue); }
 .links a:hover .v { text-decoration: underline; }
 
-/* ---- Footer / skip link ------------------------------------------------ */
+/* more shit */
 footer { color: var(--dim); text-align: center; padding: 1.6rem 0 2.4rem; font-size: 12.5px; }
 footer .cur { color: var(--violet); }
 footer a { color: var(--muted); }
@@ -264,7 +257,7 @@ code.inl { background: var(--sunk); border: 1px solid var(--edge); border-radius
         <div class="prose">
           <ul><li>The <b>Sober</b> Flatpak: <code class="inl">org.vinegarhq.Sober</code></li>
 <li><b>GTK 4.12+</b> and <b>libadwaita 1.4+</b> at runtime</li>
-<li><b>Rust 1.96+</b> and Cargo — only if you build from source. No Debian or Ubuntu release packages a <code class="inl">rustc</code> this new, so use <a href="https://rustup.rs/">rustup</a> there</li>
+<li><b>Rust 1.92+</b> and Cargo — only if you build from source. Debian 13 and Ubuntu 24.04 package an older <code class="inl">rustc</code>, so use <a href="https://rustup.rs/">rustup</a> there; Ubuntu 26.04's is new enough</li>
 <li>Optional: <code class="inl">xdg-utils</code> (to set the default handler) and Discord (for Rich Presence)</li></ul>
         </div>
       </div>
@@ -309,7 +302,7 @@ make install PREFIX=$HOME/.local">copy</button></div>
         <h2>First run</h2>
         <div class="prose">
           <p>Launch <code class="inl">pigmentlab</code> from your app menu or terminal. The <b>Home</b> page shows whether Sober is installed and detected, which <i>build</i> it is, the Roblox client version it has fetched, and whether its config exists yet. Press <span class="kbd">Launch Roblox</span> to start Sober. If Sober has never run, open it once so it can create its configuration — then the Settings, FastFlags and other pages light up.</p>
-          <p>Home also checks Flathub in the background and shows a banner when a newer Sober build is available. This matters more than it sounds: VinegarHQ ships Sober as periodic <b>refreshes</b> that keep the same version number — 1.7.1 has been rebuilt roughly weekly — and Roblox rejects clients that fall behind. A version match is not proof you are current, so Pigment compares the Flatpak commit instead.</p>
+          <p>Home also checks Flathub in the background and shows a banner when a newer Sober build is available. This matters more than it sounds: VinegarHQ ships Sober as periodic <b>refreshes</b> that keep the same version number — 1.7.1 was rebuilt roughly weekly, and 1.8.0 follows the same pattern — and Roblox rejects clients that fall behind. A version match is not proof you are current, so Pigment compares the Flatpak commit instead.</p>
         </div>
       </div>
     </section>
@@ -437,7 +430,7 @@ make install PREFIX=$HOME/.local">copy</button></div>
           <h3 id="sober-is-not-installed">“Sober is not installed”</h3>
           <p>Install the Flatpak: <code class="inl">flatpak install flathub org.vinegarhq.Sober</code>, then relaunch Pigment.</p>
           <h3 id="roblox-won-t-launch-or-rejects-the-client">Roblox won’t launch, or rejects the client</h3>
-          <p>Usually a stale Sober build. The version number stays <code class="inl">1.7.1</code> across refreshes, so
+          <p>Usually a stale Sober build. The version number (currently <code class="inl">1.8.0</code>) stays the same across refreshes, so
   <i>check the build date on Home, not the version</i> — if Pigment shows the update banner, run
   <code class="inl">flatpak update org.vinegarhq.Sober</code> and try again.</p>
           <h3 id="settings-fastflags-say-there-s-no-config">Settings/FastFlags say there’s no config</h3>
@@ -446,7 +439,11 @@ make install PREFIX=$HOME/.local">copy</button></div>
           <p>Pigment refreshes the desktop and (on KDE) the service cache automatically. If a link still opens the wrong
   app, toggle the switch off and on again.</p>
           <h3 id="discord-presence-won-t-connect">Discord presence won’t connect</h3>
-          <p>Make sure the Discord desktop app is running before enabling the toggle. Flatpak/Snap Discord is supported.</p>
+          <p>Pigment keeps retrying while the toggle is on, so it connects as soon as Discord starts, and reconnects if Discord restarts. Native, Flatpak (Discord, Canary, Vesktop) and Snap Discord are supported.</p>
+          <h3 id="a-mod-or-preset-does-nothing">A mod or preset does nothing</h3>
+          <p>Mod files only work if Roblox still ships a file at that path. Roblox 2.745 (shipped with Sober 1.8) removed most assets from the APK — including every sound — and now downloads them on demand, so older sound mods may have no effect. The Mods page counts how many of a mod’s files match this Roblox version and flags downloadable presets whose targets are gone.</p>
+          <h3 id="uninstalling">Uninstalling</h3>
+          <p>If you made Pigment the default launcher, run <code class="inl">pigment-launch --unregister</code> as your user first (a per-user <code class="inl">make uninstall</code> does this for you). It hands <code class="inl">roblox://</code> back to whatever owned it before and deletes Pigment’s launcher entry.</p>
         </div>
       </div>
     </section>
@@ -512,8 +509,11 @@ make install PREFIX=$HOME/.local">copy</button></div>
         <h2>Privacy</h2>
         <div class="prose">
           <p>Pigment is a local desktop app with <b>no servers, accounts, analytics, or telemetry</b> — the
-  developers receive none of your data. It makes network requests only for two things:</p>
-          <ul><li>resolving game names from Roblox’s public API (it sends a public universe id, never personal data); and</li>
+  developers receive none of your data. It makes network requests only for these:</p>
+          <ul><li>the Sober update check on the Home page (<code>flatpak remote-info</code> asks Flathub for the newest build);</li>
+    <li>resolving game names from Roblox’s public API (it sends a public universe id, never personal data);</li>
+    <li>the downloadable-preset catalog, fetched from GitHub the first time you open the Mods page;</li>
+    <li>preset files, downloaded only when you click Install and checked against pinned SHA-256 checksums; and</li>
     <li>optional Discord Rich Presence, which talks to your <b>local</b> Discord client only.</li></ul>
           <p>Your configuration, FastFlags, mods, and logs never leave your machine. Read the full
   <a href="https://github.com/SpeeNotPee/Pigment/blob/main/PRIVACY.md">Privacy Notice</a>.</p>
