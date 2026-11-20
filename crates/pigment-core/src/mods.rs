@@ -21,12 +21,14 @@ impl ApkAssetTree {
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
 
         //central directory only. by_index used to seek to every local header, slow af on a 100MB apk
+        //zip 9 hands back Result<Cow<str>> per name now. a name that wont decode isnt an asset
+        //sober ever loads anyway so just skip it, no point failing the whole apk over it
         let files = zip
             .file_names()
+            .filter_map(Result::ok)
             .filter(|name| !name.ends_with('/'))
-            .filter_map(|name| name.strip_prefix(APK_ASSETS_PREFIX))
+            .filter_map(|name| name.strip_prefix(APK_ASSETS_PREFIX).map(str::to_string))
             .filter(|rel| !rel.is_empty())
-            .map(str::to_string)
             .collect::<BTreeSet<_>>();
         Ok(Self { files })
     }
